@@ -1,0 +1,36 @@
+name: Deploy to Azure
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Login to Azure
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+    
+    - name: Login to ACR
+      uses: azure/docker-login@v1
+      with:
+        login-server: mastercookregistry.azurecr.io
+        username: ${{ secrets.ACR_USERNAME }}
+        password: ${{ secrets.ACR_PASSWORD }}
+    
+    - name: Build and push containers
+      run: |
+        docker-compose -f docker-compose.prod.yml build
+        docker-compose -f docker-compose.prod.yml push
+    
+    - name: Restart containers in Azure
+      run: |
+        az container restart --name login-service --resource-group MasterCookGroup
+        az container restart --name workshop-service --resource-group MasterCookGroup
+        az container restart --name reservation-service --resource-group MasterCookGroup
+        az container restart --name payment-service --resource-group MasterCookGroup
+        az container restart --name booking-service --resource-group MasterCookGroup
