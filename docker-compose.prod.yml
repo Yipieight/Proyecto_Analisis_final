@@ -1,0 +1,86 @@
+version: '3.8'
+
+services:
+  # Login Microservice
+  login_service:
+    image: mastercookregistry.azurecr.io/login_service:latest
+    build:
+      context: .
+      dockerfile: ./login_backend_api_python/Dockerfile
+    environment:
+      - DB_USER=avnadmin
+      - DB_PASSWORD=AVNS_Ndhucmx5Rv2r1Ni7ocS
+      - DB_HOST=mysql-3bbd1558-xboxgar56-040e.g.aivencloud.com
+      - DB_PORT=16152
+      - DB_NAME=defaultdb
+      - JWT_SECRET_KEY=mastercook-super-secret
+    ports:
+      - "5001:5001"
+
+  # Workshop Microservice
+  workshop_service:
+    image: mastercookregistry.azurecr.io/workshop_service:latest
+    build:
+      context: .
+      dockerfile: ./workshop_backend_api_python/Dockerfile
+    environment:
+      - DB_USER=avnadmin
+      - DB_PASSWORD=AVNS_Ndhucmx5Rv2r1Ni7ocS
+      - DB_HOST=mysql-3bbd1558-xboxgar56-040e.g.aivencloud.com
+      - DB_PORT=16152
+      - DB_NAME=defaultdb
+      - JWT_SECRET_KEY=mastercook-super-secret
+    ports:
+      - "5002:5002"
+
+  # Reservation Microservice
+  reservation_service:
+    image: mastercookregistry.azurecr.io/reservation_service:latest
+    build:
+      context: .
+      dockerfile: ./reservation_backend_api_python/Dockerfile
+    environment:
+      - DB_USER=avnadmin
+      - DB_PASSWORD=AVNS_Ndhucmx5Rv2r1Ni7ocS
+      - DB_HOST=mysql-3bbd1558-xboxgar56-040e.g.aivencloud.com
+      - DB_PORT=16152
+      - DB_NAME=defaultdb
+      - JWT_SECRET_KEY=mastercook-super-secret
+    ports:
+      - "5003:5003"
+
+  # Payment Microservice
+  payment_service:
+    image: mastercookregistry.azurecr.io/payment_service:latest
+    build:
+      context: .
+      dockerfile: ./payment_backend_api_python/Dockerfile
+    environment:
+      - DB_USER=avnadmin
+      - DB_PASSWORD=AVNS_Ndhucmx5Rv2r1Ni7ocS
+      - DB_HOST=mysql-3bbd1558-xboxgar56-040e.g.aivencloud.com
+      - DB_PORT=16152
+      - DB_NAME=defaultdb
+      - JWT_SECRET_KEY=mastercook-super-secret
+      - RESERVATION_SERVICE_URL=http://reservation_service:5003
+    ports:
+      - "5004:5004"
+
+  # Booking Microservice (Facade/Gateway)
+  booking_service:
+    image: mastercookregistry.azurecr.io/booking_service:latest
+    build:
+      context: .
+      dockerfile: ./booking_backend_api_python/Dockerfile
+    environment:
+      - DB_USER=avnadmin
+      - DB_PASSWORD=AVNS_Ndhucmx5Rv2r1Ni7ocS
+      - DB_HOST=mysql-3bbd1558-xboxgar56-040e.g.aivencloud.com
+      - DB_PORT=16152
+      - DB_NAME=defaultdb
+      - JWT_SECRET_KEY=mastercook-super-secret
+      - WORKSHOP_SERVICE_URL=http://workshop_service:5002
+      - RESERVATION_SERVICE_URL=http://reservation_service:5003
+      - PAYMENT_SERVICE_URL=http://payment_service:5004
+    ports:
+      - "5008:5008"
