@@ -1,0 +1,167 @@
+import { useState, useEffect } from 'react';
+
+const categories = [
+  {
+    id: 1,
+    title: "COCINA INTERNACIONAL",
+    linkUrl: "https://tripletta.commande.deliveroo.fr/fr/",
+    imageUrl: "/Internacional.webp", 
+    dataZoom: "livraison"
+  },
+  {
+    id: 2,
+    title: "REPOSTERÍA CREATIVA",
+    linkUrl: "#",
+    imageUrl: "/Creativa.webp", 
+    dataZoom: "emporter"
+  },
+  {
+    id: 3,
+    title: "COCINA SALUDABLE",
+    linkUrl: "#",
+    imageUrl: "/Saludable.webp", 
+    dataZoom: "surplace"
+  },
+  {
+    id: 4,
+    title: "COCINA VEGETARIANA",
+    linkUrl: "#",
+    imageUrl: "/Vegetariana.webp", 
+    dataZoom: "shop"
+  },
+  {
+    id: 5,
+    title: "COCINA MOLECULAR",
+    linkUrl: "#",
+    imageUrl: "/Molecular.webp", 
+    dataZoom: "pizza"
+  },
+  {
+    id: 6,
+    title: "COCINA DE TEMPORADA",
+    linkUrl: "#",
+    imageUrl: "/Temporada.webp", 
+    dataZoom: "pasta"
+  },
+  {
+    id: 7,
+    title: "COCINA PARA PRINCIPIANTES",
+    linkUrl: "#",
+    imageUrl: "/Principiantes.webp", 
+    dataZoom: "salad"
+  },
+  {
+    id: 8,
+    title: "COCINA PARA NIÑOS",
+    linkUrl: "#",
+    imageUrl: "/Niños.webp", 
+    dataZoom: "dessert"
+  }
+];
+
+export default function Categories() {
+  const [currentPage, setCurrentPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const itemsPerPage = 4;
+  
+  useEffect(() => {
+    setTotalPages(Math.ceil(categories.length / itemsPerPage));
+  }, []);
+
+  const nextPage = () => {
+    if (currentPage < totalPages - 1) {
+      setCurrentPage(currentPage + 1);
+    } else {
+      setCurrentPage(0);
+    }
+  };
+  
+  const prevPage = () => {
+    if (currentPage > 0) {
+      setCurrentPage(currentPage - 1);
+    } else {
+      setCurrentPage(totalPages - 1);
+    }
+  };
+  
+  const startIndex = currentPage * itemsPerPage;
+  const visibleCategories = categories.slice(startIndex, startIndex + itemsPerPage);
+  
+  return (
+    <section className="relative">
+      <div className="grid grid-cols-4 gap-0">
+        {visibleCategories.map((category) => (
+          <div key={category.id} className="relative outline outline-2 outline-primary">
+            <div className="relative" data-zoom={category.dataZoom}>
+              <div className="title-container"
+                  onMouseEnter={(e) => {
+                    const imgElement = e.currentTarget.parentElement.querySelector('img');
+                    if (imgElement) imgElement.classList.add('scale-105');
+                  }}
+                  onMouseLeave={(e) => {
+                    const imgElement = e.currentTarget.parentElement.querySelector('img');
+                    if (imgElement) imgElement.classList.remove('scale-105');
+                  }}
+              >
+                <a 
+                  href={category.linkUrl} 
+                  target="_blank" 
+                  className="block"
+                >
+                  <div className="flex justify-between items-center p-4 lg:p-6 font-bold text-2xl lg:text-3xl bg-[#df6f6f] text-secondary hover:bg-secondary hover:text-[#df6f6f] border-b-2 border-primary transition-colors duration-200">
+                    <h2>{category.title}</h2>
+                    <div className="w-6 h-6">
+                      <svg width="100%" height="100%" viewBox="0 0 17 27" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M3.1836 26.0662C6.32574 20.7266 11.2081 16.5218 16.4082 13.2568C11.1598 10.0406 6.48457 5.68956 3.19051 0.447478L0.0552734 0.447478C3.34243 5.52248 7.30636 9.93614 12.1957 13.2568C7.29945 16.6262 3.1836 21.0886 2.47955e-05 26.0662L3.1905 26.0662L3.1836 26.0662Z" fill="currentColor"></path>
+                      </svg>
+                    </div>
+                  </div>
+                </a>
+              </div>
+
+              <div className="h-[25rem] overflow-hidden">
+                <img 
+                  src={category.imageUrl} 
+                  alt={`Categoría ${category.title}`} 
+                  className="w-full h-full object-cover transition-transform duration-[350ms] pointer-events-none" 
+                  data-zoom={category.dataZoom}
+                />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="flex justify-between absolute top-1/2 left-0 right-0 transform -translate-y-1/2 px-4">
+        <button 
+          onClick={prevPage} 
+          className="p-3 rounded-full bg-primary text-secondary"
+          aria-label="Página anterior"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+        <button 
+          onClick={nextPage} 
+          className="p-3 rounded-full bg-primary text-secondary"
+          aria-label="Página siguiente"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+      </div>
+
+      <div className="flex justify-center items-center h-10">
+        {Array.from({ length: totalPages }).map((_, index) => (
+          <button
+            key={index}
+            onClick={() => setCurrentPage(index)}
+            className={`h-3 w-3 mx-1 rounded-full ${currentPage === index ? 'bg-accent' : 'bg-gray-400'}`}
+            aria-label={`Ir a página ${index + 1}`}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
