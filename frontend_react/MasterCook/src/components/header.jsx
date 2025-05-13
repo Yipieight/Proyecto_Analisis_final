@@ -1,16 +1,20 @@
 export default function Header() {
     return (
-        <nav className="fixed top-0 left-0 right-0 z-50 bg-light-background">
-            <div className="grid grid-cols-3 w-full bg-light-background border-b-2 border-gray-200">
+        <nav className="fixed top-0 left-0 right-0 z-50 bg-white/30 backdrop-blur-md border-b border-gray-200">
+            <div className="grid grid-cols-3 w-full ">
                 <div className="flex items-stretch">
-                    <a href="/" className="flex items-center h-16 px-10 text-main-text hover:text-primary transition-colors border-r border-gray-300">
-                        Inicio
+                    <a href="/" className="group relative overflow-hidden flex items-center h-16 px-10 text-main-text border-r border-gray-300">
+                        <span className="absolute inset-0 bg-light-background translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-in-out z-0"></span>
+                        <span className="relative z-10 group-hover:text-primary transition-colors duration-300">Inicio</span>
                     </a>
-                    <a href="/talleres" className="flex items-center h-16 px-10 text-main-text hover:text-primary transition-colors border-r border-gray-300">
-                        Talleres
+
+                   <a href="/workshops" className="group relative overflow-hidden flex items-center h-16 px-10 text-main-text border-r border-gray-300">
+                        <span className="absolute inset-0 bg-light-background translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-in-out z-0"></span>
+                        <span className="relative z-10 group-hover:text-primary transition-colors duration-300">Talleres</span>
                     </a>
-                    <a href="/nosotros" className="flex items-center h-16 px-7 text-main-text hover:text-primary transition-colors border-r border-gray-300">
-                        Sobre Nosotros
+                    <a href="/" className="group relative overflow-hidden flex items-center h-16 px-10 text-main-text border-r border-gray-300">
+                        <span className="absolute inset-0 bg-light-background translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-in-out z-0"></span>
+                        <span className="relative z-10 group-hover:text-primary transition-colors duration-300">Sobre Nosotros</span>
                     </a>
                 </div>
                 
@@ -21,11 +25,13 @@ export default function Header() {
                 </div>
                 
                 <div className="flex items-stretch justify-end">
-                    <a href="/contacto" className="flex items-center h-16 px-10 text-main-text hover:text-primary transition-colors border-l border-r border-gray-300">
-                        Contacto
+                    <a href="/" className="group relative overflow-hidden flex items-center h-16 px-10 text-main-text border-l border-r border-gray-300">
+                        <span className="absolute inset-0 bg-light-background translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-in-out z-0"></span>
+                        <span className="relative z-10 group-hover:text-primary transition-colors duration-300">Contacto</span>
                     </a>
-                    <a href="/perfil" className="flex items-center h-16 px-10 text-main-text hover:text-primary transition-colors">    
-                        Usuario
+                    <a href="/" className="group relative overflow-hidden flex items-center h-16 px-10 text-main-text border-r border-gray-300">
+                        <span className="absolute inset-0 bg-light-background translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-in-out z-0"></span>
+                        <span className="relative z-10 group-hover:text-primary transition-colors duration-300">Usuario</span>
                     </a>
                 </div>
             </div>
