@@ -267,9 +267,18 @@ def get_instructor(instructor_id):
 # Routes for workshop categories
 @app.route('/api/workshop-categories', methods=['GET'])
 def get_workshop_categories():
-    # Fetch distinct categories from workshops table
-    categories = db.session.query(Workshop.category.distinct()).all()
-    category_list = [category[0] for category in categories]
+    # Fetch all categories from the categories table
+    categories = db.session.query(Category).all()
+    
+    # Format the category data
+    category_list = [
+        {
+            'id': category.id,
+            'name': category.name,
+            'description': category.description
+        } 
+        for category in categories
+    ]
     
     return jsonify({
         'message': 'Categories retrieved successfully',
