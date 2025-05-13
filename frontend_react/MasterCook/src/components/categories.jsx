@@ -4,57 +4,57 @@ const categories = [
   {
     id: 1,
     title: "COCINA INTERNACIONAL",
-    linkUrl: "https://tripletta.commande.deliveroo.fr/fr/",
-    imageUrl: "/Internacional.webp", 
+    linkUrl: "#",
+    imageUrl: "https://hd51x5cptm.ufs.sh/f/lhdSxG5nEibuGp1bZAdST36YIKb4wOqk5Bh18de9pVNuzLxm", 
     dataZoom: "livraison"
   },
   {
     id: 2,
     title: "REPOSTERÍA CREATIVA",
     linkUrl: "#",
-    imageUrl: "/Creativa.webp", 
+    imageUrl: "https://hd51x5cptm.ufs.sh/f/lhdSxG5nEibuGpftzbdST36YIKb4wOqk5Bh18de9pVNuzLxm", 
     dataZoom: "emporter"
   },
   {
     id: 3,
     title: "COCINA SALUDABLE",
     linkUrl: "#",
-    imageUrl: "/Saludable.webp", 
+    imageUrl: "https://hd51x5cptm.ufs.sh/f/lhdSxG5nEibuhb7Putj3e1J6DSgYMyaCiBw5LslkPtv9brEj", 
     dataZoom: "surplace"
   },
   {
     id: 4,
     title: "COCINA VEGETARIANA",
     linkUrl: "#",
-    imageUrl: "/Vegetariana.webp", 
+    imageUrl: "https://hd51x5cptm.ufs.sh/f/lhdSxG5nEibu0dMKe8sc6uyP5nLA7TKRrHzZ4CiFfwdqSeGV", 
     dataZoom: "shop"
   },
   {
     id: 5,
     title: "COCINA MOLECULAR",
     linkUrl: "#",
-    imageUrl: "/Molecular.webp", 
+    imageUrl: "https://hd51x5cptm.ufs.sh/f/lhdSxG5nEibuOGY0Shx71g7WHn3LiTroDRy6zBQO80cAsCxk", 
     dataZoom: "pizza"
   },
   {
     id: 6,
     title: "COCINA DE TEMPORADA",
     linkUrl: "#",
-    imageUrl: "/Temporada.webp", 
+    imageUrl: "https://hd51x5cptm.ufs.sh/f/lhdSxG5nEibufqztBjU8QwLP1DhIBuKNojVamz5qcldgyxA7", 
     dataZoom: "pasta"
   },
   {
     id: 7,
-    title: "COCINA PARA PRINCIPIANTES",
+    title: "COCINA DE PRINCIPIANTES",
     linkUrl: "#",
-    imageUrl: "/Principiantes.webp", 
+    imageUrl: "https://hd51x5cptm.ufs.sh/f/lhdSxG5nEibuOGFIWwH71g7WHn3LiTroDRy6zBQO80cAsCxk", 
     dataZoom: "salad"
   },
   {
     id: 8,
     title: "COCINA PARA NIÑOS",
     linkUrl: "#",
-    imageUrl: "/Niños.webp", 
+    imageUrl: "https://hd51x5cptm.ufs.sh/f/lhdSxG5nEibuKXQbKrlYgniuMETeVqQIDa4XrF5fP7sWRB2w", 
     dataZoom: "dessert"
   }
 ];
@@ -88,7 +88,10 @@ export default function Categories() {
   const visibleCategories = categories.slice(startIndex, startIndex + itemsPerPage);
   
   return (
-    <section className="relative">
+    <section className="relative flex flex-col font-medium text-main-text">
+      <div className='p-8'>
+        <h1 className='text-4xl'>Categorías</h1>
+      </div>
       <div className="grid grid-cols-4 gap-0">
         {visibleCategories.map((category) => (
           <div key={category.id} className="relative outline outline-2 outline-primary">
@@ -108,7 +111,7 @@ export default function Categories() {
                   target="_blank" 
                   className="block"
                 >
-                  <div className="flex justify-between items-center p-4 lg:p-6 font-bold text-2xl lg:text-3xl bg-[#df6f6f] text-secondary hover:bg-secondary hover:text-[#df6f6f] border-b-2 border-primary transition-colors duration-200">
+                  <div className="flex justify-between items-center p-4 lg:p-6 font-bold text-2xl lg:text-3xl bg-[#e58c8c] text-secondary hover:bg-secondary hover:text-[#df6f6f] border-b-2 border-primary transition-colors duration-200">
                     <h2>{category.title}</h2>
                     <div className="w-6 h-6">
                       <svg width="100%" height="100%" viewBox="0 0 17 27" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -152,7 +155,7 @@ export default function Categories() {
         </button>
       </div>
 
-      <div className="flex justify-center items-center h-10">
+      <div className="flex justify-center items-center h-10 bg-light-background">
         {Array.from({ length: totalPages }).map((_, index) => (
           <button
             key={index}

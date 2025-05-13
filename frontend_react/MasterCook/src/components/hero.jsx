@@ -16,7 +16,7 @@ export default function Hero() {
               <path d="M1 1L13 13" stroke="#3E3A33" strokeWidth="1"></path>
             </svg>
             <img 
-              src="/hero.webp" 
+              src="https://hd51x5cptm.ufs.sh/f/lhdSxG5nEibu9qTfNuJycjaDbmvStoldZsnYTkJARN9PHMhX" 
               alt="Plato gourmet" 
               className="object-cover w-full max-w-[250px] sm:max-w-[350px] md:max-w-[350px] 2xl:max-w-[450px]" 
             />
