@@ -6,12 +6,10 @@ export default function Workshops({ initialCategory = "todo" }) {
   const [selectedCategory, setSelectedCategory] = useState(initialCategory);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Fetch workshops
   useEffect(() => {
     async function fetchWorkshops() {
       setIsLoading(true);
       try {
-        // Replace with your actual workshop data API endpoint
         const response = await fetch('/api/workshops');
         const data = await response.json();
         setWorkshops(data);
@@ -26,7 +24,6 @@ export default function Workshops({ initialCategory = "todo" }) {
     fetchWorkshops();
   }, []);
 
-  // Filter workshops based on selected category
   useEffect(() => {
     if (selectedCategory.toLowerCase() === "todo") {
       setFilteredWorkshops(workshops);
@@ -39,7 +36,6 @@ export default function Workshops({ initialCategory = "todo" }) {
     }
   }, [selectedCategory, workshops]);
 
-  // Categorías estáticas (puedes reemplazar esto con una llamada a la API más adelante)
   const categories = [
     { id: "todo", name: "Todos" },
     { id: "panaderia", name: "Panadería" },
@@ -50,7 +46,6 @@ export default function Workshops({ initialCategory = "todo" }) {
   return (
     <section className="w-full h-full mt-20 pb-24 px-6">
       <div className="w-full">
-        {/* Navegación de categorías simplificada */}
         <div className="w-full overflow-x-auto">
           <div className="inline-flex space-x-4 py-2">
             {categories.map((category) => (
@@ -69,7 +64,6 @@ export default function Workshops({ initialCategory = "todo" }) {
           </div>
         </div>
 
-        {/* Workshops */}
         <div className="mt-8">
           <h3 className="text-2xl font-normal tracking-tight mb-4">
             Talleres
@@ -114,7 +108,7 @@ export default function Workshops({ initialCategory = "todo" }) {
       <div className="fixed bottom-5 right-5">
         <button 
           onClick={() => window.scrollTo({top: 0, behavior: 'smooth'})}
-          className="bg-black text-white rounded-full p-3"
+          className="bg-black text-white rounded-full w-10 h-10 p-3 flex items-center justify-center"
           aria-label="Volver arriba"
         >
           ↑
