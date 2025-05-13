@@ -318,8 +318,18 @@ def get_category(category_id):
 # Routes for workshop categories (legacy route - mantiene retrocompatibilidad)
 @app.route('/api/workshop-categories', methods=['GET'])
 def get_workshop_categories():
-    categories = Category.query.all()
-    category_list = [category.name for category in categories]
+    # Fetch all categories from the categories table
+    categories = db.session.query(Category).all()
+    
+    # Format the category data
+    category_list = [
+        {
+            'id': category.id,
+            'name': category.name,
+            'description': category.description
+        } 
+        for category in categories
+    ]
     
     return jsonify({
         'message': 'Categories retrieved successfully',
