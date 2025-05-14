@@ -14,6 +14,25 @@ app = create_app(__name__)
 init_app(app)
 
 # Models
+
+class Category(db.Model):
+    __tablename__ = 'categories'  # Corrige el nombre de la tabla
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), nullable=False)
+    description = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'description': self.description,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+
 class Instructor(db.Model):
     __tablename__ = 'instructors'
     
@@ -44,7 +63,8 @@ class Workshop(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text)
-    category = db.Column(db.String(50), nullable=False)
+    category_id = db.Column(db.Integer, db.ForeignKey('categories.id'))
+    category_relationship = db.relationship('Category', backref='workshops')
     date = db.Column(db.Date, nullable=False)
     start_time = db.Column(db.Time, nullable=False)
     end_time = db.Column(db.Time, nullable=False)
@@ -62,7 +82,8 @@ class Workshop(db.Model):
             'id': self.id,
             'name': self.name,
             'description': self.description,
-            'category': self.category,
+            'category_id': self.category_id,
+            'category_name': self.category_relationship.name if self.category_relationship else None,
             'date': self.date.isoformat() if self.date else None,
             'start_time': self.start_time.isoformat() if self.start_time else None,
             'end_time': self.end_time.isoformat() if self.end_time else None,
@@ -94,12 +115,16 @@ with app.app_context():
 # Routes for Workshops
 @app.route('/api/workshops', methods=['GET'])
 def get_workshops():
-    category = request.args.get('category')
+    category_id = request.args.get('category_id')
+    category_name = request.args.get('category')
     
     query = Workshop.query
     
-    if category:
-        query = query.filter_by(category=category)
+    if category_id:
+        query = query.filter_by(category_id=category_id)
+    elif category_name:
+        # Buscar por nombre de categoría requiere un join
+        query = query.join(Category).filter(Category.name == category_name)
     
     workshops = query.all()
     
@@ -130,7 +155,7 @@ def create_workshop():
     
     # Check for required fields
     required_fields = [
-        'name', 'description', 'category', 'date', 
+        'name', 'description', 'category_id', 'date',  # Cambiado de 'category' a 'category_id'
         'start_time', 'end_time', 'price', 'capacity', 
         'instructor_id', 'modality'
     ]
@@ -144,6 +169,11 @@ def create_workshop():
     if not instructor:
         return jsonify({'error': 'Instructor not found'}), 404
     
+    # Check if category exists
+    category = Category.query.get(data['category_id'])
+    if not category:
+        return jsonify({'error': 'Category not found'}), 404
+    
     # Parse date and times
     try:
         date = datetime.strptime(data['date'], '%Y-%m-%d').date()
@@ -156,7 +186,7 @@ def create_workshop():
     workshop = Workshop(
         name=data['name'],
         description=data['description'],
-        category=data['category'],
+        category_id=data['category_id'],  # Cambiado de 'category' a 'category_id'
         date=date,
         start_time=start_time,
         end_time=end_time,
@@ -174,6 +204,7 @@ def create_workshop():
         'workshop': workshop.to_dict()
     }), 201
 
+
 @app.route('/api/workshops/<int:workshop_id>', methods=['PUT'])
 @jwt_required()
 def update_workshop(workshop_id):
@@ -189,23 +220,17 @@ def update_workshop(workshop_id):
         workshop.name = data['name']
     if 'description' in data:
         workshop.description = data['description']
-    if 'category' in data:
-        workshop.category = data['category']
+    if 'category_id' in data:  # Cambiado de 'category' a 'category_id'
+        # Verificar si la categoría existe
+        category = Category.query.get(data['category_id'])
+        if not category:
+            return jsonify({'error': 'Category not found'}), 404
+        workshop.category_id = data['category_id']
     if 'date' in data:
         try:
             workshop.date = datetime.strptime(data['date'], '%Y-%m-%d').date()
         except ValueError:
             return jsonify({'error': 'Invalid date format'}), 400
-    if 'start_time' in data:
-        try:
-            workshop.start_time = datetime.strptime(data['start_time'], '%H:%M:%S').time()
-        except ValueError:
-            return jsonify({'error': 'Invalid time format'}), 400
-    if 'end_time' in data:
-        try:
-            workshop.end_time = datetime.strptime(data['end_time'], '%H:%M:%S').time()
-        except ValueError:
-            return jsonify({'error': 'Invalid time format'}), 400
     if 'price' in data:
         workshop.price = data['price']
     if 'capacity' in data:
@@ -268,12 +293,12 @@ def get_instructor(instructor_id):
 @app.route('/api/workshop-categories', methods=['GET'])
 def get_workshop_categories():
     # Fetch all categories from the categories table
-    categories = db.session.query(Category).all()
+    categories = Category.query.all()
     
     # Format the category data
     category_list = [
         {
-            'id': category.id,
+            'id': category.id,  # Cambiado de 'categories.id' a 'category.id'
             'name': category.name,
             'description': category.description
         } 
