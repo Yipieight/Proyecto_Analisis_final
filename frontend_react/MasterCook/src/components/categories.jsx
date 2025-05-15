@@ -1,59 +1,62 @@
 import { useState, useEffect } from 'react';
 
+const categoryMappings = {
+  "COCINA INTERNACIONAL": 1,
+  "REPOSTERÍA CREATIVA": 2,
+  "COCINA SALUDABLE": 3,
+  "COCINA VEGETARIANA": 4,
+  "COCINA MOLECULAR": 5,
+  "COCINA DE TEMPORADA": 6,
+  "COCINA DE PRINCIPIANTES": 7,
+  "COCINA PARA NIÑOS": 8
+};
+
 const categories = [
   {
     id: 1,
     title: "COCINA INTERNACIONAL",
-    linkUrl: "#",
     imageUrl: "https://hd51x5cptm.ufs.sh/f/lhdSxG5nEibuGp1bZAdST36YIKb4wOqk5Bh18de9pVNuzLxm", 
     dataZoom: "livraison"
   },
   {
     id: 2,
     title: "REPOSTERÍA CREATIVA",
-    linkUrl: "#",
     imageUrl: "https://hd51x5cptm.ufs.sh/f/lhdSxG5nEibuGpftzbdST36YIKb4wOqk5Bh18de9pVNuzLxm", 
     dataZoom: "emporter"
   },
   {
     id: 3,
     title: "COCINA SALUDABLE",
-    linkUrl: "#",
     imageUrl: "https://hd51x5cptm.ufs.sh/f/lhdSxG5nEibuhb7Putj3e1J6DSgYMyaCiBw5LslkPtv9brEj", 
     dataZoom: "surplace"
   },
   {
     id: 4,
     title: "COCINA VEGETARIANA",
-    linkUrl: "#",
     imageUrl: "https://hd51x5cptm.ufs.sh/f/lhdSxG5nEibu0dMKe8sc6uyP5nLA7TKRrHzZ4CiFfwdqSeGV", 
     dataZoom: "shop"
   },
   {
     id: 5,
     title: "COCINA MOLECULAR",
-    linkUrl: "#",
     imageUrl: "https://hd51x5cptm.ufs.sh/f/lhdSxG5nEibuOGY0Shx71g7WHn3LiTroDRy6zBQO80cAsCxk", 
     dataZoom: "pizza"
   },
   {
     id: 6,
     title: "COCINA DE TEMPORADA",
-    linkUrl: "#",
     imageUrl: "https://hd51x5cptm.ufs.sh/f/lhdSxG5nEibufqztBjU8QwLP1DhIBuKNojVamz5qcldgyxA7", 
     dataZoom: "pasta"
   },
   {
     id: 7,
     title: "COCINA DE PRINCIPIANTES",
-    linkUrl: "#",
     imageUrl: "https://hd51x5cptm.ufs.sh/f/lhdSxG5nEibuOGFIWwH71g7WHn3LiTroDRy6zBQO80cAsCxk", 
     dataZoom: "salad"
   },
   {
     id: 8,
     title: "COCINA PARA NIÑOS",
-    linkUrl: "#",
     imageUrl: "https://hd51x5cptm.ufs.sh/f/lhdSxG5nEibuKXQbKrlYgniuMETeVqQIDa4XrF5fP7sWRB2w", 
     dataZoom: "dessert"
   }
@@ -84,6 +87,13 @@ export default function Categories() {
     }
   };
   
+  // Navegar a la página de workshops con el ID de categoría
+  const navigateToWorkshops = (categoryId) => {
+    // Navegación simple con JavaScript, pero con un estado para mantener la categoría
+    localStorage.setItem('selectedCategory', categoryId);
+    window.location.href = `/workshops`;
+  };
+  
   const startIndex = currentPage * itemsPerPage;
   const visibleCategories = categories.slice(startIndex, startIndex + itemsPerPage);
   
@@ -106,10 +116,9 @@ export default function Categories() {
                     if (imgElement) imgElement.classList.remove('scale-105');
                   }}
               >
-                <a 
-                  href={category.linkUrl} 
-                  target="_blank" 
-                  className="block"
+                <div 
+                  onClick={() => navigateToWorkshops(categoryMappings[category.title])}
+                  className="block cursor-pointer"
                 >
                   <div className="flex justify-between items-center p-4 lg:p-6 font-bold text-2xl lg:text-3xl bg-[#e58c8c] text-secondary hover:bg-secondary hover:text-[#df6f6f] border-b-2 border-primary transition-colors duration-200">
                     <h2>{category.title}</h2>
@@ -119,10 +128,13 @@ export default function Categories() {
                       </svg>
                     </div>
                   </div>
-                </a>
+                </div>
               </div>
 
-              <div className="h-[25rem] overflow-hidden">
+              <div 
+                className="h-[25rem] overflow-hidden cursor-pointer" 
+                onClick={() => navigateToWorkshops(categoryMappings[category.title])}
+              >
                 <img 
                   src={category.imageUrl} 
                   alt={`Categoría ${category.title}`} 
