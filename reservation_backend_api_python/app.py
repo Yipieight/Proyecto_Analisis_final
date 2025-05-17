@@ -124,7 +124,7 @@ def check_workshop_availability(workshop_id):
 @app.route('/api/reservations', methods=['POST'])
 @jwt_required()
 def create_reservation():
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity());
     data = request.get_json()
 
     # Validar formato de la solicitud
@@ -223,7 +223,7 @@ def create_reservation():
 @app.route('/api/reservations', methods=['GET'])
 @jwt_required()
 def get_user_reservations():
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     status = request.args.get('status')
     
     query = Reservation.query.filter_by(user_id=user_id)
@@ -241,7 +241,7 @@ def get_user_reservations():
 @app.route('/api/reservations/<int:reservation_id>', methods=['GET'])
 @jwt_required()
 def get_reservation(reservation_id):
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     
     reservation = Reservation.query.get(reservation_id)
     
@@ -260,7 +260,7 @@ def get_reservation(reservation_id):
 @app.route('/api/reservations/<int:reservation_id>', methods=['PUT'])
 @jwt_required()
 def update_reservation_status(reservation_id):
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     data = request.get_json()
     
     if 'status' not in data:
@@ -291,7 +291,7 @@ def update_reservation_status(reservation_id):
 @app.route('/api/reservations/<int:reservation_id>/cancel', methods=['PUT'])
 @jwt_required()
 def cancel_reservation(reservation_id):
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     
     reservation = Reservation.query.get(reservation_id)
     
@@ -320,6 +320,14 @@ def get_workshop_reservations(workshop_id):
     return jsonify({
         'message': 'Workshop reservations retrieved successfully',
         'reservations': [reservation.to_dict() for reservation in reservations]
+    }), 200
+
+@app.route('/api/health-check', methods=['GET'])
+def health_check():
+    return jsonify({
+        'status': 'ok',
+        'message': 'Reservation service is running',
+        'time': datetime.utcnow().isoformat()
     }), 200
 
 if __name__ == '__main__':
