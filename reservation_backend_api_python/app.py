@@ -126,52 +126,99 @@ def check_workshop_availability(workshop_id):
 def create_reservation():
     user_id = get_jwt_identity()
     data = request.get_json()
+
+    # Validar formato de la solicitud
+    if 'workshop_ids' not in data or not isinstance(data['workshop_ids'], list):
+        return jsonify({'error': 'Se requiere un array de workshop_ids'}), 400
     
-    if 'workshop_id' not in data:
-        return jsonify({'error': 'Workshop ID is required'}), 400
+    workshop_ids = data['workshop_ids']
     
-    workshop_id = data['workshop_id']
-    
-    # Check workshop availability
-    is_available, error_message, workshop = check_workshop_availability(workshop_id)
-    if not is_available:
-        return jsonify({'error': error_message}), 400
-    
-    # Check if user already has a reservation for this workshop
-    existing_reservation = Reservation.query.filter_by(
-        user_id=user_id,
-        workshop_id=workshop_id,
-        status='Confirmada'
-    ).first()
-    
-    if existing_reservation:
-        return jsonify({'error': 'You already have a reservation for this workshop'}), 400
-    
-    # Create reservation
-    reservation = Reservation(
-        user_id=user_id,
-        workshop_id=workshop_id,
-        reservation_date=datetime.utcnow(),
-        status='Confirmada'
-    )
-    
-    db.session.add(reservation)
-    db.session.commit()
-    
-    # Create initial payment entry (pending)
-    payment = Payment(
-        reservation_id=reservation.id,
-        amount=workshop.price,
-        status='Pendiente'
-    )
-    
-    db.session.add(payment)
-    db.session.commit()
-    
-    return jsonify({
-        'message': 'Reservation created successfully',
-        'reservation': reservation.to_dict()
-    }), 201
+    if not workshop_ids:
+        return jsonify({'error': 'La lista de workshops no puede estar vacía'}), 400
+
+    try:
+        # Verificar duplicados en el request
+        unique_ids = list(set(workshop_ids))
+        if len(unique_ids) != len(workshop_ids):
+            return jsonify({'error': 'Hay workshops duplicados en la solicitud'}), 400
+
+        # Obtener todos los workshops de una sola consulta
+        workshops = Workshop.query.filter(Workshop.id.in_(workshop_ids)).all()
+        
+        # Validar existencia de todos los workshops
+        found_ids = {w.id for w in workshops}
+        missing_ids = set(workshop_ids) - found_ids
+        if missing_ids:
+            return jsonify({'error': f'Workshops no encontrados: {missing_ids}'}), 404
+
+        # Verificar disponibilidad y capacidad
+        unavailable_workshops = []
+        for workshop in workshops:
+            available, error, _ = check_workshop_availability(workshop.id)
+            if not available:
+                unavailable_workshops.append({'id': workshop.id, 'reason': error})
+
+        if unavailable_workshops:
+            return jsonify({
+                'error': 'Algunos workshops no están disponibles',
+                'details': unavailable_workshops
+            }), 400
+
+        # Verificar reservas existentes (usando IN para mejor performance)
+        existing_reservations = Reservation.query.filter(
+            Reservation.user_id == user_id,
+            Reservation.workshop_id.in_(workshop_ids),
+            Reservation.status.in_(['Confirmada', 'Pendiente'])
+        ).all()
+
+        if existing_reservations:
+            conflict_ids = {str(r.workshop_id) for r in existing_reservations}
+            return jsonify({
+                'error': f'Ya tienes reservas para estos workshops: {", ".join(conflict_ids)}'
+            }), 400
+
+        # Crear transacción
+        reservations = []
+        payments = []
+        
+        for workshop in workshops:
+            # Crear reserva
+            reservation = Reservation(
+                user_id=user_id,
+                workshop_id=workshop.id,
+                reservation_date=datetime.utcnow(),
+                status='Pendiente'
+            )
+            db.session.add(reservation)
+            db.session.flush()  # Generar ID sin commit
+            
+            # Validar precio
+            if not isinstance(workshop.price, (int, float)) or workshop.price < 0:
+                db.session.rollback()
+                return jsonify({'error': f'Precio inválido para el workshop {workshop.id}'}), 400
+            
+            # Crear pago
+            payment = Payment(
+                reservation_id=reservation.id,
+                amount=workshop.price,
+                status='Pendiente'
+            )
+            db.session.add(payment)
+            
+            reservations.append(reservation)
+            payments.append(payment)
+
+        db.session.commit()
+
+        return jsonify({
+            'message': 'Reservas creadas exitosamente',
+            'reservations': [r.to_dict() for r in reservations],
+            'payments': [p.to_dict() for p in payments]
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Error en el servidor: {str(e)}'}), 500
 
 @app.route('/api/reservations', methods=['GET'])
 @jwt_required()

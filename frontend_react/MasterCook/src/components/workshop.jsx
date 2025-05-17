@@ -112,8 +112,8 @@ const WorkshopCard = ({ workshop, workshopImages, index }) => {
   return (
     <div>
       <a href={`/workshopsId/${workshop.id}`} className="block">
-        <article className="group relative w-full h-full rounded-lg overflow-hidden bg-[#FFFFFE] shadow-sm hover:shadow-md transition-all duration-300 border border-[#FFFFE3]/20">
-          <div className="relative overflow-hidden rounded-t-lg bg-[#333333]">
+        <article className="group relative w-full h-full  overflow-hidden bg-[#FFFFFE] shadow-sm hover:shadow-md transition-all duration-300 border border-[#FFFFE3]/20">
+          <div className="relative overflow-hidden bg-[#333333]">
             <OptimizedImage
               src={
                 workshopImages[workshop.name] || 
@@ -216,13 +216,11 @@ export default function Workshops() {
     fetchWorkshops();
   }, []);
 
-  // Fetch categories
   useEffect(() => {
     async function fetchCategories() {
       try {
         const response = await fetch('http://localhost:5002/api/workshop-categories');
         const data = await response.json();
-        // Add "todo" category as first option
         const allCategories = [
           { id: "todo", name: "Todos", description: "Todos los talleres disponibles" },
           ...data.categories
@@ -230,7 +228,6 @@ export default function Workshops() {
         setCategories(allCategories);
       } catch (error) {
         console.error("Error fetching categories:", error);
-        // Fallback to a default "All" category if fetch fails
         setCategories([{ id: "todo", name: "Todos", description: "Todos los talleres disponibles" }]);
       }
     }
@@ -238,17 +235,14 @@ export default function Workshops() {
     fetchCategories();
   }, []);
 
-  // Filter workshops based on selected category, search query, and sort
   useEffect(() => {
     let filtered = [...workshops];
     
-    // Filter by category
     if (selectedCategory.toLowerCase() !== "todo") {
       const categoryId = parseInt(selectedCategory);
       filtered = filtered.filter(workshop => workshop.category_id === categoryId);
     }
     
-    // Filter by search query
     if (searchQuery.trim()) {
       const query = searchQuery.trim().toLowerCase();
       filtered = filtered.filter(workshop => {
@@ -259,7 +253,6 @@ export default function Workshops() {
       });
     }
     
-    // Sort workshops
     switch (sortBy) {
       case "price-asc":
         filtered.sort((a, b) => a.price - b.price);
@@ -274,7 +267,6 @@ export default function Workshops() {
         filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
         break;
       default:
-        // Default sorting - could be by featured or newest
         break;
     }
     

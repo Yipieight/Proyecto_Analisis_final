@@ -133,92 +133,120 @@ export default function CheckoutC() {
     }
   };
 
-  const processPayment = async () => {
-    setIsLoading(true);
+ const processPayment = async () => {
+  setIsLoading(true);
 
-    if (!authToken) {
-      setErrors({
-        ...errors,
-        auth: 'No se encontró token de autenticación. Por favor, inicia sesión nuevamente.'
-      });
-      setIsLoading(false);
-      return;
+  if (!authToken) {
+    setErrors({
+      ...errors,
+      auth: 'No se encontró token de autenticación. Por favor, inicia sesión nuevamente.'
+    });
+    setIsLoading(false);
+    return;
+  }
+  
+  try {
+    const workshopId = cartItems[0]?.id; 
+    
+    if (!workshopId) {
+      throw new Error('No workshop selected');
     }
     
-    try {
-      const workshopId = cartItems[0]?.id; 
-      
-      if (!workshopId) {
-        throw new Error('No workshop selected');
-      }
-      
-      const reservationResponse = await fetch('http://localhost:5003/api/reservations', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`
-        },
-        body: JSON.stringify({
-          workshop_id: workshopId
-        }),
-      });
-      
-      if (!reservationResponse.ok) {
-        throw new Error('Failed to create reservation');
-      }
-      
-      const reservationData = await reservationResponse.json();
-      const createdReservationId = reservationData.reservation.id;
-      setReservationId(createdReservationId);
-      
-      const paymentResponse = await fetch('http://localhost:5003/api/payments/simulate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`
-        },
-        body: JSON.stringify({
-          reservation_id: createdReservationId,
-          payment_method: paymentMethod
-        }),
-        credentials: 'include'
-      });
-      
-      if (!paymentResponse.ok) {
-        throw new Error('Payment processing failed');
-      }
-      
-      const paymentData = await paymentResponse.json();
-      setPaymentStatus(paymentData.status || 'Procesado');
-      
-      const updateResponse = await fetch(`http://localhost:5003/api/reservations/${createdReservationId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`
-        },
-        body: JSON.stringify({
-          status: 'Confirmada'
-        }),
-      });
-      
-      if (!updateResponse.ok) {
-        throw new Error('Failed to confirm reservation');
-      }
-      
-      localStorage.removeItem('salsasCart');
-      
-      setStep(3);
-    } catch (error) {
-      console.error('Payment process error:', error);
-      setErrors({
-        ...errors,
-        payment: 'Error al procesar el pago. Por favor, inténtalo de nuevo.'
-      });
-    } finally {
-      setIsLoading(false);
+    console.log('Enviando solicitud de reserva con workshop_ids:', [workshopId]);
+    
+    // 1. Crear reserva
+    const reservationResponse = await fetch('http://localhost:5003/api/reservations', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      },
+      body: JSON.stringify({
+        workshop_ids: [workshopId]
+      }),
+    });
+    
+    if (!reservationResponse.ok) {
+      const errorData = await reservationResponse.json();
+      console.error('Error de respuesta:', errorData);
+      throw new Error(`Error al crear la reserva: ${errorData.error || 'Error desconocido'}`);
     }
-  };
+    
+    const reservationData = await reservationResponse.json();
+    console.log('Respuesta de reserva:', reservationData);
+    
+    // Determinar el ID de reserva correctamente
+    let createdReservationId;
+    if (reservationData.reservations && reservationData.reservations.length > 0) {
+      createdReservationId = reservationData.reservations[0].id;
+    } else if (reservationData.reservation) {
+      createdReservationId = reservationData.reservation.id;
+    } else {
+      throw new Error('No se pudo obtener el ID de reserva de la respuesta');
+    }
+    
+    setReservationId(createdReservationId);
+    
+    // 2. Procesar pago
+    const paymentResponse = await fetch('http://localhost:5003/api/payments/simulate', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      },
+      body: JSON.stringify({
+        reservation_id: createdReservationId,
+        payment_method: paymentMethod,
+        amount: totalPrice  // Agregar monto de pago explícitamente
+      }),
+      credentials: 'include'
+    });
+    
+    if (!paymentResponse.ok) {
+      const errorData = await paymentResponse.json();
+      console.error('Error de pago:', errorData);
+      throw new Error('Error al procesar el pago');
+    }
+    
+    const paymentData = await paymentResponse.json();
+    console.log('Respuesta de pago:', paymentData);
+    setPaymentStatus(paymentData.status || 'Procesado');
+    
+    // 3. Actualizar estado de reserva
+    const updateResponse = await fetch(`http://localhost:5003/api/reservations/${createdReservationId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      },
+      body: JSON.stringify({
+        status: 'Confirmada'
+      }),
+      credentials: 'include'
+    });
+    
+    if (!updateResponse.ok) {
+      const errorData = await updateResponse.json();
+      console.error('Error al actualizar reserva:', errorData);
+      throw new Error('Error al confirmar la reserva');
+    }
+    
+    const updateData = await updateResponse.json();
+    console.log('Respuesta de actualización:', updateData);
+    
+    localStorage.removeItem('salsasCart');
+    
+    setStep(3);
+  } catch (error) {
+    console.error('Error en el proceso de pago:', error);
+    setErrors({
+      ...errors,
+      payment: `Error al procesar el pago: ${error.message}`
+    });
+  } finally {
+    setIsLoading(false);
+  }
+};   
 
   const formatCreditCard = (cardNumber) => {
     if (!cardNumber) return '';
@@ -276,7 +304,7 @@ export default function CheckoutC() {
         {step === 1 && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-6">
-              <div className="bg-white rounded-lg shadow-sm border border-[#E5E5E5] p-6">
+              <div className="bg-white  border border-[#E5E5E5] p-6">
                 <h2 className="text-xl font-medium text-[#333333] mb-4">Talleres seleccionados</h2>
                 
                 {cartItems.length === 0 ? (
@@ -322,7 +350,7 @@ export default function CheckoutC() {
                 )}
               </div>
               
-              <div className="bg-white rounded-lg shadow-sm border border-[#E5E5E5] p-6">
+              <div className="bg-white  border border-[#E5E5E5] p-6">
                 <h2 className="text-xl font-medium text-[#333333] mb-4">Información de contacto</h2>
                 <div className="space-y-4">
                   <div>
@@ -358,7 +386,7 @@ export default function CheckoutC() {
             </div>
             
             <div className="lg:col-span-1">
-              <div className="bg-white rounded-lg shadow-sm border border-[#E5E5E5] p-6 sticky top-24">
+              <div className="bg-white border border-[#E5E5E5] p-6 sticky top-24">
                 <h2 className="text-xl font-medium text-[#333333] mb-4">Resumen</h2>
                 
                 <div className="space-y-4">
@@ -400,7 +428,7 @@ export default function CheckoutC() {
         {step === 2 && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-6">
-              <div className="bg-white rounded-lg shadow-sm border border-[#E5E5E5] p-6">
+              <div className="bg-white  border border-[#E5E5E5] p-6">
                 <h2 className="text-xl font-medium text-[#333333] mb-4">Método de pago</h2>
                 
                 <div className="flex flex-wrap gap-3 mb-6">
@@ -506,7 +534,7 @@ export default function CheckoutC() {
             </div>
             
             <div className="lg:col-span-1">
-              <div className="bg-white rounded-lg shadow-sm border border-[#E5E5E5] p-6 sticky top-24">
+              <div className="bg-white border border-[#E5E5E5] p-6 sticky top-24">
                 <h2 className="text-xl font-medium text-[#333333] mb-4">Resumen</h2>
                 
                 <div className="space-y-4">
