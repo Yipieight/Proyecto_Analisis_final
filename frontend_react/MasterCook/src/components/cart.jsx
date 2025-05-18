@@ -24,7 +24,6 @@ export default function Cart({ isOpen, setIsOpen }) {
   };
 
   const checkAuthentication = () => {
-    // Check if auth_token exists in cookies
     const cookies = document.cookie.split(';');
     const authToken = cookies.find(cookie => cookie.trim().startsWith('auth_token='));
     setIsAuthenticated(!!authToken);
@@ -52,7 +51,6 @@ export default function Cart({ isOpen, setIsOpen }) {
   const handleCheckoutClick = (e) => {
     if (!isAuthenticated) {
       e.preventDefault();
-      // Redirect to login page with return URL
       window.location.href = `/login?redirect=${encodeURIComponent('/checkout')}`;
     } else {
       closeCart();
@@ -113,13 +111,13 @@ export default function Cart({ isOpen, setIsOpen }) {
               {cartItems.map((item, index) => (
                 <div
                   key={item.id}
-                  className="group rounded-lg bg-white p-4 border border-[#E5E5E5] hover:border-[#D94F4F] hover:shadow-md transition-all duration-300"
+                  className="group  bg-white p-4 border border-[#E5E5E5] hover:border-[#D94F4F] hover:shadow-md transition-all duration-300"
                   style={{
                     animation: `fadeInUp 0.3s ease-out forwards ${index * 0.1}s`
                   }}
                 >
                   <div className="flex gap-4 items-center">
-                    <div className="relative overflow-hidden rounded-lg aspect-square h-20 w-20 bg-[#FFF3E2]">
+                    <div className="relative overflow-hidden  aspect-square h-20 w-20 bg-[#FFF3E2]">
                       <img
                         src={item.imageUrl || "/images/placeholder.jpg"}
                         alt={item.name}
