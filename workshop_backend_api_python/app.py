@@ -63,8 +63,7 @@ class Workshop(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text)
-    category_id = db.Column(db.Integer, db.ForeignKey('categories.id'))
-    category_relationship = db.relationship('Category', backref='workshops')
+    category_id = db.Column(db.Integer, db.ForeignKey('categories.id'))  # Relación correcta
     date = db.Column(db.Date, nullable=False)
     start_time = db.Column(db.Time, nullable=False)
     end_time = db.Column(db.Time, nullable=False)
@@ -94,7 +93,7 @@ class Workshop(db.Model):
             'modality': self.modality,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
-            'available_slots': self.capacity - len(self.reservations) if self.reservations else self.capacity
+            'available_slots': self.capacity - len([r for r in self.reservations if r.status == 'Confirmada']) if self.reservations else self.capacity
         }
 
 class Reservation(db.Model):
@@ -107,6 +106,28 @@ class Reservation(db.Model):
     status = db.Column(db.String(20), default='Confirmada', nullable=False)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
+
+# Models
+class Category(db.Model):
+    __tablename__ = 'categories'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), nullable=False)
+    description = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
+    
+    workshops = db.relationship('Workshop', backref='category', lazy=True)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'description': self.description,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+
 
 # Create tables within application context
 with app.app_context():
