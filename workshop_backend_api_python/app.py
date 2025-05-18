@@ -64,7 +64,8 @@ class Workshop(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text)
-    category_id = db.Column(db.Integer, db.ForeignKey('categories.id'))  # Relación correcta
+    category_id = db.Column(db.Integer, db.ForeignKey('categories.id'))
+    category = db.relationship('Category', backref='workshops', lazy=True)
     date = db.Column(db.Date, nullable=False)
     start_time = db.Column(db.Time, nullable=False)
     end_time = db.Column(db.Time, nullable=False)
@@ -82,6 +83,8 @@ class Workshop(db.Model):
             'id': self.id,
             'name': self.name,
             'description': self.description,
+            'category_id': self.category_id,
+            'category_name': self.category.name if self.category else None,
             'category_id': self.category_id,
             'category_name': self.category.name if self.category else None,
             'date': self.date.isoformat() if self.date else None,
@@ -107,6 +110,7 @@ class Reservation(db.Model):
     status = db.Column(db.String(20), default='Confirmada', nullable=False)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
+
 
 # Create tables within application context
 with app.app_context():
