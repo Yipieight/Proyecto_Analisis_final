@@ -78,7 +78,7 @@ class Reservation(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     workshop_id = db.Column(db.Integer, db.ForeignKey('workshops.id'), nullable=False)
     reservation_date = db.Column(db.DateTime, default=datetime.utcnow)
-    status = db.Column(db.String(20), default='confirmada', nullable=False)  # 'confirmada', 'cancelada', 'Completada'
+    status = db.Column(db.String(20), default='confirmada', nullable=False)  # 'confirmada', 'cancelada', 'completada'
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
     
@@ -273,7 +273,7 @@ def get_user_reservations():
         workshop_end_datetime = datetime.combine(workshop.date, workshop.end_time)
         
         if workshop_end_datetime < current_datetime:
-            reservation.status = 'Completada'
+            reservation.status = 'completada'
             update_needed = True
     
     if update_needed:
@@ -321,7 +321,7 @@ def update_reservation_status(reservation_id):
         return jsonify({'error': 'Status is required'}), 400
     
     new_status = data['status']
-    if new_status not in ['confirmada', 'cancelada', 'Completada']:
+    if new_status not in ['confirmada', 'cancelada', 'completada']:
         return jsonify({'error': 'Invalid status value'}), 400
     
     reservation = Reservation.query.get(reservation_id)
