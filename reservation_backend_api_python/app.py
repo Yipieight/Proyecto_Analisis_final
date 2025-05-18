@@ -78,7 +78,7 @@ class Reservation(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     workshop_id = db.Column(db.Integer, db.ForeignKey('workshops.id'), nullable=False)
     reservation_date = db.Column(db.DateTime, default=datetime.utcnow)
-    status = db.Column(db.String(20), default='Confirmada', nullable=False)  # 'Confirmada', 'Cancelada', 'Completada'
+    status = db.Column(db.String(20), default='confirmada', nullable=False)  # 'confirmada', 'cancelada', 'Completada'
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
     
@@ -126,7 +126,7 @@ def check_workshop_availability(workshop_id):
         return False, "Workshop not found", None
     
     # Check if there are available slots
-    reserved_count = Reservation.query.filter_by(workshop_id=workshop_id, status='Confirmada').count()
+    reserved_count = Reservation.query.filter_by(workshop_id=workshop_id, status='confirmada').count()
     if reserved_count >= workshop.capacity:
         return False, "Workshop is fully booked", None
     
@@ -202,7 +202,7 @@ def create_reservation():
         existing_reservations = Reservation.query.filter(
             Reservation.user_id == user_id,
             Reservation.workshop_id.in_(workshop_ids),
-            Reservation.status.in_(['Confirmada', 'pendiente'])
+            Reservation.status.in_(['confirmada', 'pendiente'])
         ).all()
 
         if existing_reservations:
@@ -263,7 +263,7 @@ def get_user_reservations():
     # Buscar reservas confirmadas para este usuario
     confirmed_reservations = Reservation.query.join(Workshop).filter(
         Reservation.user_id == user_id,
-        Reservation.status == 'Confirmada'
+        Reservation.status == 'confirmada'
     ).all()
     
     # Verificar cada reserva para ver si el taller ya terminó
@@ -321,7 +321,7 @@ def update_reservation_status(reservation_id):
         return jsonify({'error': 'Status is required'}), 400
     
     new_status = data['status']
-    if new_status not in ['Confirmada', 'Cancelada', 'Completada']:
+    if new_status not in ['confirmada', 'cancelada', 'Completada']:
         return jsonify({'error': 'Invalid status value'}), 400
     
     reservation = Reservation.query.get(reservation_id)
@@ -357,7 +357,7 @@ def cancel_reservation(reservation_id):
         return jsonify({'error': 'Unauthorized access to reservation'}), 403
     
     # Update reservation status to canceled
-    reservation.status = 'Cancelada'
+    reservation.status = 'cancelada'
     db.session.commit()
     
     return jsonify({
