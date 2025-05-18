@@ -249,12 +249,37 @@ def create_reservation():
         print(f"Error: {str(e)}")
         return jsonify({'error': f'Error en el servidor: {str(e)}'}), 500
 
+from datetime import datetime
+
 @app.route('/api/reservations', methods=['GET'])
 @jwt_required()
 def get_user_reservations():
     user_id = int(get_jwt_identity())
     status = request.args.get('status')
     
+    # Primero, actualizar el estado de los talleres ya finalizados
+    current_datetime = datetime.now()
+    
+    # Buscar reservas confirmadas para este usuario
+    confirmed_reservations = Reservation.query.join(Workshop).filter(
+        Reservation.user_id == user_id,
+        Reservation.status == 'Confirmada'
+    ).all()
+    
+    # Verificar cada reserva para ver si el taller ya terminó
+    update_needed = False
+    for reservation in confirmed_reservations:
+        workshop = reservation.workshop
+        workshop_end_datetime = datetime.combine(workshop.date, workshop.end_time)
+        
+        if workshop_end_datetime < current_datetime:
+            reservation.status = 'Completada'
+            update_needed = True
+    
+    if update_needed:
+        db.session.commit()
+    
+    # Ahora obtener las reservas solicitadas
     query = Reservation.query.filter_by(user_id=user_id)
     
     if status:
