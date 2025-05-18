@@ -63,11 +63,7 @@ class Workshop(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text)
-<<<<<<< HEAD
-    category = db.Column(db.String(50), nullable=False)
-=======
     category_id = db.Column(db.Integer, db.ForeignKey('categories.id'))  # Relación correcta
->>>>>>> workshop_backend_api_python
     date = db.Column(db.Date, nullable=False)
     start_time = db.Column(db.Time, nullable=False)
     end_time = db.Column(db.Time, nullable=False)
@@ -85,7 +81,8 @@ class Workshop(db.Model):
             'id': self.id,
             'name': self.name,
             'description': self.description,
-            'category': self.category,
+            'category_id': self.category_id,
+            'category_name': self.category_relationship.name if self.category_relationship else None,
             'date': self.date.isoformat() if self.date else None,
             'start_time': self.start_time.isoformat() if self.start_time else None,
             'end_time': self.end_time.isoformat() if self.end_time else None,
@@ -110,8 +107,6 @@ class Reservation(db.Model):
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
 
-<<<<<<< HEAD
-=======
 # Models
 class Category(db.Model):
     __tablename__ = 'categories'
@@ -133,7 +128,6 @@ class Category(db.Model):
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
 
->>>>>>> workshop_backend_api_python
 
 # Create tables within application context
 with app.app_context():
