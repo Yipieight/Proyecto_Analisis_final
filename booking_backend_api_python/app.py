@@ -138,7 +138,7 @@ def get_workshop_categories():
 @app.route('/api/booking/reserve', methods=['POST'])
 @jwt_required()
 def make_reservation():
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     data = request.get_json()
     
     if 'workshop_id' not in data:

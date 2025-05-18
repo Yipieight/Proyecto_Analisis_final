@@ -109,7 +109,7 @@ def make_authenticated_request(url, method='GET', data=None, token=None):
 @app.route('/api/payments/reservation/<int:reservation_id>', methods=['GET'])
 @jwt_required()
 def get_payment_by_reservation(reservation_id):
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     
     # First, verify that the reservation belongs to the user
     reservation = Reservation.query.get(reservation_id)
@@ -133,7 +133,7 @@ def get_payment_by_reservation(reservation_id):
 @app.route('/api/payments', methods=['POST'])
 @jwt_required()
 def create_payment():
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     data = request.get_json()
     
     if 'reservation_id' not in data or 'amount' not in data or 'payment_method' not in data:
@@ -193,7 +193,7 @@ def simulate_payment():
     This endpoint simulates a payment process for a reservation.
     It's a mock service as specified in the project requirements.
     """
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     data = request.get_json()
     
     if 'reservation_id' not in data:
@@ -253,7 +253,7 @@ def simulate_payment():
 @app.route('/api/payments/user', methods=['GET'])
 @jwt_required()
 def get_user_payments():
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     
     # Get all reservations for the user
     reservations = Reservation.query.filter_by(user_id=user_id).all()

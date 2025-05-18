@@ -197,7 +197,7 @@ export default function CheckoutC() {
       body: JSON.stringify({
         reservation_id: createdReservationId,
         payment_method: paymentMethod,
-        amount: totalPrice  // Agregar monto de pago explícitamente
+        amount: totalPrice  
       }),
       credentials: 'include'
     });
@@ -212,7 +212,6 @@ export default function CheckoutC() {
     console.log('Respuesta de pago:', paymentData);
     setPaymentStatus(paymentData.status || 'Procesado');
     
-    // 3. Actualizar estado de reserva
     const updateResponse = await fetch(`http://localhost:5003/api/reservations/${createdReservationId}`, {
       method: 'PUT',
       headers: {
@@ -319,7 +318,7 @@ export default function CheckoutC() {
                   <div className="space-y-4">
                     {cartItems.map((item) => (
                       <div key={item.id} className="flex gap-4 py-4 border-b border-[#E5E5E5] last:border-b-0">
-                        <div className="h-24 w-24 bg-[#F5F5F5] rounded-lg overflow-hidden">
+                        <div className="h-24 w-24 bg-[#F5F5F5] overflow-hidden">
                           <img 
                             src={item.imageUrl || "/api/placeholder/100/100"} 
                             alt={item.name} 

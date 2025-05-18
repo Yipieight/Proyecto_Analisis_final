@@ -90,18 +90,18 @@ export default function WorkshopId({ workshopId }) {
   const [allWorkshops, setAllWorkshops] = useState([]);
 
   const workshopImagesById = {
-    1: "https://hd51x5cptm.ufs.sh/f/lhdSxG5nEibuMuhOjpzB02MisAEvYjHQhPGucaFX54CJrUOn", // Sabores de Italia
-    2: "https://hd51x5cptm.ufs.sh/f/lhdSxG5nEibu7htBM8RilvS4mGda0BVPYjrps1H5Lf6DObNF", // Pastelería Francesa
-    3: "https://hd51x5cptm.ufs.sh/f/lhdSxG5nEibuBHsdxLPb6lrQWNcyYFdnfEzkeVHJXgoMawmD", // Comida Saludable para la Semana
-    4: "https://hd51x5cptm.ufs.sh/f/lhdSxG5nEibutFnAGpualz2QAIYZWuOfsk5nxJDdbcVy1pe4", // Cocina Vegetariana Creativa
-    5: "https://hd51x5cptm.ufs.sh/f/lhdSxG5nEibutHioByualz2QAIYZWuOfsk5nxJDdbcVy1pe4", // Introducción a la Cocina Molecular
-    6: "https://hd51x5cptm.ufs.sh/f/lhdSxG5nEibumctXQLNrPvHGd1j2UM5sACiWEgXI6atVnYyz", // Cocina Primaveral
-    7: "https://hd51x5cptm.ufs.sh/f/lhdSxG5nEibuuXdUT8fyXR7wfFas8jC0PIStrJ3dMb4ZeBKD", // Primeros Pasos en la Cocina
-    8: "https://hd51x5cptm.ufs.sh/f/lhdSxG5nEibuInmtowlAyO8kqw0XmJiTH3EQFBVbCG4o2UaS", // Cocineros Junior
-    9: "https://hd51x5cptm.ufs.sh/f/lhdSxG5nEibuEbSDr1NQ3G5DiXUHsPJjl4xCBKmyotakWeFZ", // Cocina Asiática
-    10: "https://hd51x5cptm.ufs.sh/f/lhdSxG5nEibu6VjN9FHvu4jTO7gzRm3dXnqYyJGwxA5VLMkc", // Decoración de Cupcakes
-    11: "https://hd51x5cptm.ufs.sh/f/lhdSxG5nEibuabLKK2ABUdWKHfOIM621lGQbSXNs5CArhFxz", // Bowls Saludables
-    12: "https://hd51x5cptm.ufs.sh/f/lhdSxG5nEibu5F9013ZRtlECNGU1HWj4bcvBhzO65xgwroMF"  // Proteínas Vegetales
+    1: "https://hd51x5cptm.ufs.sh/f/lhdSxG5nEibuMuhOjpzB02MisAEvYjHQhPGucaFX54CJrUOn", 
+    2: "https://hd51x5cptm.ufs.sh/f/lhdSxG5nEibu7htBM8RilvS4mGda0BVPYjrps1H5Lf6DObNF", 
+    3: "https://hd51x5cptm.ufs.sh/f/lhdSxG5nEibuBHsdxLPb6lrQWNcyYFdnfEzkeVHJXgoMawmD", 
+    4: "https://hd51x5cptm.ufs.sh/f/lhdSxG5nEibutFnAGpualz2QAIYZWuOfsk5nxJDdbcVy1pe4", 
+    5: "https://hd51x5cptm.ufs.sh/f/lhdSxG5nEibutHioByualz2QAIYZWuOfsk5nxJDdbcVy1pe4", 
+    6: "https://hd51x5cptm.ufs.sh/f/lhdSxG5nEibumctXQLNrPvHGd1j2UM5sACiWEgXI6atVnYyz", 
+    7: "https://hd51x5cptm.ufs.sh/f/lhdSxG5nEibuuXdUT8fyXR7wfFas8jC0PIStrJ3dMb4ZeBKD", 
+    8: "https://hd51x5cptm.ufs.sh/f/lhdSxG5nEibuInmtowlAyO8kqw0XmJiTH3EQFBVbCG4o2UaS", 
+    9: "https://hd51x5cptm.ufs.sh/f/lhdSxG5nEibuEbSDr1NQ3G5DiXUHsPJjl4xCBKmyotakWeFZ", 
+    10: "https://hd51x5cptm.ufs.sh/f/lhdSxG5nEibu6VjN9FHvu4jTO7gzRm3dXnqYyJGwxA5VLMkc", 
+    11: "https://hd51x5cptm.ufs.sh/f/lhdSxG5nEibuabLKK2ABUdWKHfOIM621lGQbSXNs5CArhFxz", 
+    12: "https://hd51x5cptm.ufs.sh/f/lhdSxG5nEibu5F9013ZRtlECNGU1HWj4bcvBhzO65xgwroMF"  
   };
   
   const loadAllWorkshops = async () => {
@@ -300,7 +300,7 @@ export default function WorkshopId({ workshopId }) {
         whileHover={{ y: -5 }}
       >
         <a href={`/workshopsId/${workshop.id}`} className="block">
-          <article className="group relative w-full h-full rounded-lg overflow-hidden bg-[#FFFFFE] shadow-sm hover:shadow-md transition-all duration-300 border border-[#FFFFE3]/20">
+          <article className="group relative w-full h-full overflow-hidden bg-[#FFFFFE] shadow-sm hover:shadow-md transition-all duration-300 border border-[#FFFFE3]/20">
             <div className="relative overflow-hidden  bg-[#333333] h-40">
               <OptimizedImage 
                 src={workshopImage} 
