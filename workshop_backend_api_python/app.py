@@ -174,11 +174,6 @@ def create_workshop():
     if not instructor:
         return jsonify({'error': 'Instructor not found'}), 404
     
-    # Check if category exists
-    category = Category.query.get(data['category_id'])
-    if not category:
-        return jsonify({'error': 'Category not found'}), 404
-    
     # Parse date and times
     try:
         date = datetime.strptime(data['date'], '%Y-%m-%d').date()
@@ -209,7 +204,6 @@ def create_workshop():
         'workshop': workshop.to_dict()
     }), 201
 
-
 @app.route('/api/workshops/<int:workshop_id>', methods=['PUT'])
 @jwt_required()
 def update_workshop(workshop_id):
@@ -236,6 +230,16 @@ def update_workshop(workshop_id):
             workshop.date = datetime.strptime(data['date'], '%Y-%m-%d').date()
         except ValueError:
             return jsonify({'error': 'Invalid date format'}), 400
+    if 'start_time' in data:
+        try:
+            workshop.start_time = datetime.strptime(data['start_time'], '%H:%M:%S').time()
+        except ValueError:
+            return jsonify({'error': 'Invalid time format'}), 400
+    if 'end_time' in data:
+        try:
+            workshop.end_time = datetime.strptime(data['end_time'], '%H:%M:%S').time()
+        except ValueError:
+            return jsonify({'error': 'Invalid time format'}), 400
     if 'price' in data:
         workshop.price = data['price']
     if 'capacity' in data:
@@ -318,18 +322,8 @@ def get_category(category_id):
 # Routes for workshop categories (legacy route - mantiene retrocompatibilidad)
 @app.route('/api/workshop-categories', methods=['GET'])
 def get_workshop_categories():
-    # Fetch all categories from the categories table
     categories = Category.query.all()
-    
-    # Format the category data
-    category_list = [
-        {
-            'id': category.id,  # Cambiado de 'categories.id' a 'category.id'
-            'name': category.name,
-            'description': category.description
-        } 
-        for category in categories
-    ]
+    category_list = [category.name for category in categories]
     
     return jsonify({
         'message': 'Categories retrieved successfully',
