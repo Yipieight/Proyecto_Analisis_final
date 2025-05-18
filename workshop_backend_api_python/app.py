@@ -63,8 +63,7 @@ class Workshop(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text)
-    category_id = db.Column(db.Integer, db.ForeignKey('categories.id'))
-    category_relationship = db.relationship('Category', backref='workshops')
+    category = db.Column(db.String(50), nullable=False)
     date = db.Column(db.Date, nullable=False)
     start_time = db.Column(db.Time, nullable=False)
     end_time = db.Column(db.Time, nullable=False)
@@ -82,8 +81,7 @@ class Workshop(db.Model):
             'id': self.id,
             'name': self.name,
             'description': self.description,
-            'category_id': self.category_id,
-            'category_name': self.category_relationship.name if self.category_relationship else None,
+            'category': self.category,
             'date': self.date.isoformat() if self.date else None,
             'start_time': self.start_time.isoformat() if self.start_time else None,
             'end_time': self.end_time.isoformat() if self.end_time else None,
@@ -107,6 +105,7 @@ class Reservation(db.Model):
     status = db.Column(db.String(20), default='Confirmada', nullable=False)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
+
 
 # Create tables within application context
 with app.app_context():

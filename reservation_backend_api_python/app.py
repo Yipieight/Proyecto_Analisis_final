@@ -5,6 +5,9 @@ import sys
 import os
 from datetime import datetime
 import requests
+from decimal import Decimal
+
+
 
 # Add parent directory to path to import config
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -29,11 +32,11 @@ class User(db.Model):
 
 class Workshop(db.Model):
     __tablename__ = 'workshops'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text)
-    category = db.Column(db.String(50), nullable=False)
+    category_id = db.Column(db.Integer, db.ForeignKey('categories.id'))
     date = db.Column(db.Date, nullable=False)
     start_time = db.Column(db.Time, nullable=False)
     end_time = db.Column(db.Time, nullable=False)
@@ -45,6 +48,15 @@ class Workshop(db.Model):
     updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
     
     reservations = db.relationship('Reservation', backref='workshop', lazy=True)
+
+class Category(db.Model):
+    __tablename__ = 'categories'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), nullable=False)
+    description = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
 
 class Instructor(db.Model):
     __tablename__ = 'instructors'
@@ -124,59 +136,123 @@ def check_workshop_availability(workshop_id):
 @app.route('/api/reservations', methods=['POST'])
 @jwt_required()
 def create_reservation():
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     data = request.get_json()
+
+    # Log para depuración
+    print(f"Request data: {data}")
+
+    # Validar formato de la solicitud
+    if 'workshop_ids' not in data or not isinstance(data['workshop_ids'], list):
+        return jsonify({'error': 'Se requiere un array de workshop_ids'}), 400
     
-    if 'workshop_id' not in data:
-        return jsonify({'error': 'Workshop ID is required'}), 400
+    workshop_ids = data['workshop_ids']
     
-    workshop_id = data['workshop_id']
-    
-    # Check workshop availability
-    is_available, error_message, workshop = check_workshop_availability(workshop_id)
-    if not is_available:
-        return jsonify({'error': error_message}), 400
-    
-    # Check if user already has a reservation for this workshop
-    existing_reservation = Reservation.query.filter_by(
-        user_id=user_id,
-        workshop_id=workshop_id,
-        status='Confirmada'
-    ).first()
-    
-    if existing_reservation:
-        return jsonify({'error': 'You already have a reservation for this workshop'}), 400
-    
-    # Create reservation
-    reservation = Reservation(
-        user_id=user_id,
-        workshop_id=workshop_id,
-        reservation_date=datetime.utcnow(),
-        status='Confirmada'
-    )
-    
-    db.session.add(reservation)
-    db.session.commit()
-    
-    # Create initial payment entry (pending)
-    payment = Payment(
-        reservation_id=reservation.id,
-        amount=workshop.price,
-        status='Pendiente'
-    )
-    
-    db.session.add(payment)
-    db.session.commit()
-    
-    return jsonify({
-        'message': 'Reservation created successfully',
-        'reservation': reservation.to_dict()
-    }), 201
+    if not workshop_ids:
+        return jsonify({'error': 'La lista de workshops no puede estar vacía'}), 400
+
+    try:
+        # Verificar duplicados en el request
+        unique_ids = list(set(workshop_ids))
+        if len(unique_ids) != len(workshop_ids):
+            return jsonify({'error': 'Hay workshops duplicados en la solicitud'}), 400
+
+        # Obtener todos los workshops de una sola consulta
+        workshops = Workshop.query.filter(Workshop.id.in_(workshop_ids)).all()
+        
+        # Log para depuración
+        print(f"Found workshops: {len(workshops)}")
+        
+        # Validar que se encontraron workshops
+        if not workshops:
+            return jsonify({'error': 'No se encontraron workshops con los IDs proporcionados'}), 404
+            
+        # Validar existencia de todos los workshops
+        found_ids = {w.id for w in workshops}
+        missing_ids = set(workshop_ids) - found_ids
+        if missing_ids:
+            return jsonify({'error': f'Workshops no encontrados: {missing_ids}'}), 404
+
+        # Verificar disponibilidad y capacidad
+        unavailable_workshops = []
+        for workshop in workshops:
+            available, error, _ = check_workshop_availability(workshop.id)
+            if not available:
+                unavailable_workshops.append({'id': workshop.id, 'reason': error})
+
+        if unavailable_workshops:
+            return jsonify({
+                'error': 'Algunos workshops no están disponibles',
+                'details': unavailable_workshops
+            }), 400
+
+        # Verificar precios antes de crear reservas
+        for workshop in workshops:
+            if workshop.price is None:
+                return jsonify({'error': f'Precio no definido para el workshop {workshop.id}'}), 400
+                
+            try:
+                price_value = float(workshop.price)
+                if price_value < 0:
+                    return jsonify({'error': f'Precio negativo para el workshop {workshop.id}'}), 400
+            except (TypeError, ValueError):
+                return jsonify({'error': f'Precio inválido para el workshop {workshop.id}'}), 400
+
+        # Verificar reservas existentes (usando IN para mejor performance)
+        existing_reservations = Reservation.query.filter(
+            Reservation.user_id == user_id,
+            Reservation.workshop_id.in_(workshop_ids),
+            Reservation.status.in_(['Confirmada', 'Pendiente'])
+        ).all()
+
+        if existing_reservations:
+            conflict_ids = {str(r.workshop_id) for r in existing_reservations}
+            return jsonify({
+                'error': f'Ya tienes reservas para estos workshops: {", ".join(conflict_ids)}'
+            }), 400
+
+        # Crear transacción
+        reservations = []
+        payments = []
+        
+        for workshop in workshops:
+            # Crear reserva
+            reservation = Reservation(
+                user_id=user_id,
+                workshop_id=workshop.id,
+                reservation_date=datetime.utcnow(),
+                status='Pendiente'
+            )
+            db.session.add(reservation)
+            db.session.flush()  # Generar ID sin commit
+            
+            # Crear pago (el precio ya fue validado)
+            payment = Payment(
+                reservation_id=reservation.id,
+                amount=workshop.price,
+                status='pendiente'
+            )
+            db.session.add(payment)
+            
+            reservations.append(reservation)
+            payments.append(payment)
+
+        db.session.commit()
+
+        return jsonify({
+            'message': 'Reservas creadas exitosamente',
+            'reservations': [r.to_dict() for r in reservations]
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error: {str(e)}")
+        return jsonify({'error': f'Error en el servidor: {str(e)}'}), 500
 
 @app.route('/api/reservations', methods=['GET'])
 @jwt_required()
 def get_user_reservations():
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     status = request.args.get('status')
     
     query = Reservation.query.filter_by(user_id=user_id)
@@ -194,7 +270,7 @@ def get_user_reservations():
 @app.route('/api/reservations/<int:reservation_id>', methods=['GET'])
 @jwt_required()
 def get_reservation(reservation_id):
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     
     reservation = Reservation.query.get(reservation_id)
     
@@ -213,7 +289,7 @@ def get_reservation(reservation_id):
 @app.route('/api/reservations/<int:reservation_id>', methods=['PUT'])
 @jwt_required()
 def update_reservation_status(reservation_id):
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     data = request.get_json()
     
     if 'status' not in data:
@@ -244,7 +320,7 @@ def update_reservation_status(reservation_id):
 @app.route('/api/reservations/<int:reservation_id>/cancel', methods=['PUT'])
 @jwt_required()
 def cancel_reservation(reservation_id):
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     
     reservation = Reservation.query.get(reservation_id)
     
@@ -273,6 +349,14 @@ def get_workshop_reservations(workshop_id):
     return jsonify({
         'message': 'Workshop reservations retrieved successfully',
         'reservations': [reservation.to_dict() for reservation in reservations]
+    }), 200
+
+@app.route('/api/health-check', methods=['GET'])
+def health_check():
+    return jsonify({
+        'status': 'ok',
+        'message': 'Reservation service is running',
+        'time': datetime.utcnow().isoformat()
     }), 200
 
 if __name__ == '__main__':
