@@ -200,7 +200,7 @@ def verify_card():
         
         # Verificar que la reserva no esté ya confirmada y pagada
         existing_payment = Payment.query.filter_by(reservation_id=res_id).first()
-        if existing_payment and existing_payment.status == 'Pagado':
+        if existing_payment and existing_payment.status == 'pagado':
             return jsonify({'error': f'La reserva con ID {res_id} ya está pagada'}), 400
         
         reservations.append(reservation)
@@ -255,7 +255,7 @@ def verify_card():
             try:
                 for reservation in reservations:
                     # 1. Actualizar estado de la reserva a "Confirmada"
-                    reservation.status = 'onfirmada'
+                    reservation.status = 'confirmada'
                     
                     # 2. Obtener o crear el pago para esta reserva
                     payment = Payment.query.filter_by(reservation_id=reservation.id).first()
@@ -270,7 +270,7 @@ def verify_card():
                     if payment:
                         # Actualizar pago existente
                         payment.payment_method = f"Tarjeta terminada en {card_last_4}"
-                        payment.status = "Pagado"
+                        payment.status = "pagado"
                         payment.payment_date = datetime.utcnow()
                         payment.amount = amount
                     else:
@@ -279,7 +279,7 @@ def verify_card():
                             reservation_id=reservation.id,
                             amount=amount,
                             payment_method=f"Tarjeta terminada en {card_last_4}",
-                            status="Pagado",
+                            status="pagado",
                             payment_date=datetime.utcnow()
                         )
                         db.session.add(payment)
@@ -346,14 +346,14 @@ def create_payment():
     # Check if payment already exists
     existing_payment = Payment.query.filter_by(reservation_id=reservation_id).first()
     
-    if existing_payment and existing_payment.status == 'Pagado':
+    if existing_payment and existing_payment.status == 'pagado':
         return jsonify({'error': 'Payment already completed for this reservation'}), 400
     
     # If payment exists but pending, update it
     if existing_payment:
         existing_payment.amount = data['amount']
         existing_payment.payment_method = data['payment_method']
-        existing_payment.status = 'Pagado'
+        existing_payment.status = 'pagado'
         existing_payment.payment_date = datetime.utcnow()
         
         db.session.commit()
@@ -368,7 +368,7 @@ def create_payment():
         reservation_id=reservation_id,
         amount=data['amount'],
         payment_method=data['payment_method'],
-        status='Pagado',
+        status='pagado',
         payment_date=datetime.utcnow()
     )
     
@@ -417,7 +417,7 @@ def simulate_payment():
     payment_data = {
         'amount': amount,
         'payment_method': data.get('payment_method', 'Credit Card'),
-        'status': 'Pagado',
+        'status': 'pagado',
         'payment_date': datetime.utcnow()
     }
     
