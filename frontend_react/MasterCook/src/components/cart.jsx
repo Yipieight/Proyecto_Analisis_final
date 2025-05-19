@@ -44,6 +44,14 @@ export default function Cart({ isOpen, setIsOpen }) {
     localStorage.setItem('salsasCart', JSON.stringify(updatedCart));
   };
 
+  const removeAllItems = () => {
+  setCartItems([]);
+  setTotalItems(0);
+  setTotalPrice(0);
+  localStorage.removeItem('salsasCart');
+};
+
+
   const closeCart = () => {
     setIsOpen(false);
   };

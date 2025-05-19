@@ -218,19 +218,26 @@ export default function Workshops() {
 
   useEffect(() => {
     async function fetchCategories() {
-      try {
-        const response = await fetch('http://localhost:5002/api/workshop-categories');
-        const data = await response.json();
-        const allCategories = [
-          { id: "todo", name: "Todos", description: "Todos los talleres disponibles" },
-          ...data.categories
-        ];
-        setCategories(allCategories);
-      } catch (error) {
-        console.error("Error fetching categories:", error);
-        setCategories([{ id: "todo", name: "Todos", description: "Todos los talleres disponibles" }]);
-      }
-    }
+  try {
+    const response = await fetch('http://localhost:5002/api/workshop-categories');
+    const data = await response.json();
+    
+    const apiCategories = data.categories.map((categoryName, index) => ({
+      id: String(index + 1), 
+      name: categoryName,
+    }));
+
+    const allCategories = [
+      { id: "todo", name: "Todos", description: "Todos los talleres disponibles" },
+      ...apiCategories 
+    ];
+    
+    setCategories(allCategories);
+  } catch (error) {
+    console.error("Error fetching categories:", error);
+    setCategories([{ id: "todo", name: "Todos", description: "Todos los talleres disponibles" }]);
+  }
+}
 
     fetchCategories();
   }, []);

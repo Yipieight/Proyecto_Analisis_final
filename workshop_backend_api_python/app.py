@@ -14,16 +14,17 @@ app = create_app(__name__)
 init_app(app)
 
 # Models
-
 class Category(db.Model):
-    __tablename__ = 'categories'  # Corrige el nombre de la tabla
-
+    __tablename__ = 'categories'
+    
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), nullable=False)
     description = db.Column(db.Text)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
-
+    
+    workshops = db.relationship('Workshop', backref='category', lazy=True)
+    
     def to_dict(self):
         return {
             'id': self.id,
@@ -63,8 +64,7 @@ class Workshop(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text)
-    category_id = db.Column(db.Integer, db.ForeignKey('categories.id'))
-    category_relationship = db.relationship('Category', backref='workshops')
+    category_id = db.Column(db.Integer, db.ForeignKey('categories.id'))  # Relación correcta
     date = db.Column(db.Date, nullable=False)
     start_time = db.Column(db.Time, nullable=False)
     end_time = db.Column(db.Time, nullable=False)
@@ -83,7 +83,7 @@ class Workshop(db.Model):
             'name': self.name,
             'description': self.description,
             'category_id': self.category_id,
-            'category_name': self.category_relationship.name if self.category_relationship else None,
+            'category_name': self.category.name if self.category else None,
             'date': self.date.isoformat() if self.date else None,
             'start_time': self.start_time.isoformat() if self.start_time else None,
             'end_time': self.end_time.isoformat() if self.end_time else None,
@@ -94,7 +94,7 @@ class Workshop(db.Model):
             'modality': self.modality,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
-            'available_slots': self.capacity - len(self.reservations) if self.reservations else self.capacity
+            'available_slots': self.capacity - len([r for r in self.reservations if r.status == 'Confirmada']) if self.reservations else self.capacity
         }
 
 class Reservation(db.Model):
@@ -116,15 +116,11 @@ with app.app_context():
 @app.route('/api/workshops', methods=['GET'])
 def get_workshops():
     category_id = request.args.get('category_id')
-    category_name = request.args.get('category')
     
     query = Workshop.query
     
     if category_id:
         query = query.filter_by(category_id=category_id)
-    elif category_name:
-        # Buscar por nombre de categoría requiere un join
-        query = query.join(Category).filter(Category.name == category_name)
     
     workshops = query.all()
     
@@ -155,7 +151,7 @@ def create_workshop():
     
     # Check for required fields
     required_fields = [
-        'name', 'description', 'category_id', 'date',  # Cambiado de 'category' a 'category_id'
+        'name', 'description', 'category_id', 'date', 
         'start_time', 'end_time', 'price', 'capacity', 
         'instructor_id', 'modality'
     ]
@@ -164,15 +160,15 @@ def create_workshop():
         if field not in data:
             return jsonify({'error': f'Missing required field: {field}'}), 400
     
-    # Check if instructor exists
-    instructor = Instructor.query.get(data['instructor_id'])
-    if not instructor:
-        return jsonify({'error': 'Instructor not found'}), 404
-    
     # Check if category exists
     category = Category.query.get(data['category_id'])
     if not category:
         return jsonify({'error': 'Category not found'}), 404
+    
+    # Check if instructor exists
+    instructor = Instructor.query.get(data['instructor_id'])
+    if not instructor:
+        return jsonify({'error': 'Instructor not found'}), 404
     
     # Parse date and times
     try:
@@ -186,7 +182,7 @@ def create_workshop():
     workshop = Workshop(
         name=data['name'],
         description=data['description'],
-        category_id=data['category_id'],  # Cambiado de 'category' a 'category_id'
+        category_id=data['category_id'],
         date=date,
         start_time=start_time,
         end_time=end_time,
@@ -204,7 +200,6 @@ def create_workshop():
         'workshop': workshop.to_dict()
     }), 201
 
-
 @app.route('/api/workshops/<int:workshop_id>', methods=['PUT'])
 @jwt_required()
 def update_workshop(workshop_id):
@@ -220,8 +215,8 @@ def update_workshop(workshop_id):
         workshop.name = data['name']
     if 'description' in data:
         workshop.description = data['description']
-    if 'category_id' in data:  # Cambiado de 'category' a 'category_id'
-        # Verificar si la categoría existe
+    if 'category_id' in data:
+        # Check if category exists
         category = Category.query.get(data['category_id'])
         if not category:
             return jsonify({'error': 'Category not found'}), 404
@@ -231,6 +226,16 @@ def update_workshop(workshop_id):
             workshop.date = datetime.strptime(data['date'], '%Y-%m-%d').date()
         except ValueError:
             return jsonify({'error': 'Invalid date format'}), 400
+    if 'start_time' in data:
+        try:
+            workshop.start_time = datetime.strptime(data['start_time'], '%H:%M:%S').time()
+        except ValueError:
+            return jsonify({'error': 'Invalid time format'}), 400
+    if 'end_time' in data:
+        try:
+            workshop.end_time = datetime.strptime(data['end_time'], '%H:%M:%S').time()
+        except ValueError:
+            return jsonify({'error': 'Invalid time format'}), 400
     if 'price' in data:
         workshop.price = data['price']
     if 'capacity' in data:
@@ -289,21 +294,32 @@ def get_instructor(instructor_id):
         'instructor': instructor.to_dict()
     }), 200
 
-# Routes for workshop categories
+# Routes for Categories
+@app.route('/api/categories', methods=['GET'])
+def get_categories():
+    categories = Category.query.all()
+    return jsonify({
+        'message': 'Categories retrieved successfully',
+        'categories': [category.to_dict() for category in categories]
+    }), 200
+
+@app.route('/api/categories/<int:category_id>', methods=['GET'])
+def get_category(category_id):
+    category = Category.query.get(category_id)
+    
+    if not category:
+        return jsonify({'error': 'Category not found'}), 404
+    
+    return jsonify({
+        'message': 'Category retrieved successfully',
+        'category': category.to_dict()
+    }), 200
+
+# Routes for workshop categories (legacy route - mantiene retrocompatibilidad)
 @app.route('/api/workshop-categories', methods=['GET'])
 def get_workshop_categories():
-    # Fetch all categories from the categories table
     categories = Category.query.all()
-    
-    # Format the category data
-    category_list = [
-        {
-            'id': category.id,  # Cambiado de 'categories.id' a 'category.id'
-            'name': category.name,
-            'description': category.description
-        } 
-        for category in categories
-    ]
+    category_list = [category.name for category in categories]
     
     return jsonify({
         'message': 'Categories retrieved successfully',
