@@ -1,0 +1,27 @@
+---
+import Welcome from '../components/Welcome.astro';
+import Layout from '../layouts/Layout.astro';
+import Hero from '../components/hero';
+import Categories from '../components/categories';
+import '../styles/global.css';
+import Featured from '../components/featured';
+import FeaturedCards from '../components/featuredCards';
+import Benefits from '../components/benefits';
+import Testimonials from '../components/testimonials';
+import Suscribe from '../components/Suscribe';
+
+// Welcome to Astro! Wondering what to do next? Check out the Astro documentation at https://docs.astro.build
+// Don't want to use any of this? Delete everything in this file, the `assets`, `components`, and `layouts` directories, and start fresh.
+---
+
+<Layout>
+	<Hero/>
+	<Categories client:load/>
+	<Featured client:load/>
+	<FeaturedCards client:load/>
+	<Benefits />
+	<Testimonials/>
+	<Suscribe />
+	
+</Layout>
+

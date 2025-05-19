@@ -1,0 +1,9 @@
+---
+import Layout from "../layouts/Layout.astro"
+import Welcome from "../components/Welcome.astro"
+import WorkshopsComponent from "../components/workshop.jsx";
+---
+
+<Layout>
+    <WorkshopsComponent client:load initialCategory="todo" />
+</Layout>

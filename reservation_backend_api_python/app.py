@@ -221,7 +221,8 @@ def create_reservation():
                 user_id=user_id,
                 workshop_id=workshop.id,
                 reservation_date=datetime.utcnow(),
-                status='pendiente'
+                status='Pendiente'
+
             )
             db.session.add(reservation)
             db.session.flush()  # Generar ID sin commit
