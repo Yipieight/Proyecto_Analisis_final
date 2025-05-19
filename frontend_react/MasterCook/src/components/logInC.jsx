@@ -71,7 +71,7 @@ export default function LoginC() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
-        className="w-full max-w-md bg-white rounded-xl shadow-lg overflow-hidden"
+        className="w-full max-w-md bg-white rounded-xl border border-[#e0dfdf] overflow-hidden"
       >
         <div className="px-8 pt-8 pb-6 border-b border-[#E5E5E5]">
           <h1 className="text-2xl font-bold text-[#333333] mb-2">Inicia sesión</h1>
@@ -164,10 +164,6 @@ export default function LoginC() {
                   Recordarme
                 </label>
               </div>
-              
-              <a href="/forgot-password" className="text-sm font-medium text-[#D94F4F] hover:text-[#c04545] transition-colors">
-                ¿Olvidaste tu contraseña?
-              </a>
             </div>
             
             <button

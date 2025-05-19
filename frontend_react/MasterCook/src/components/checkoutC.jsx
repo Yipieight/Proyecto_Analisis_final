@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { ChevronLeft, CreditCard, Calendar, Clock, User, ShoppingBag, Check, ArrowRight, Lock } from 'lucide-react';
+import Cart from './cart';
+import { ChevronLeft, CreditCard, Calendar, Clock, User, ShoppingBag, Check, ArrowRight, Lock, AlertCircle } from 'lucide-react';
 
 export default function CheckoutC() {
   const [cartItems, setCartItems] = useState([]);
@@ -17,8 +18,10 @@ export default function CheckoutC() {
   });
   const [errors, setErrors] = useState({});
   const [reservationId, setReservationId] = useState(null);
+  const [existingReservations, setExistingReservations] = useState([]);
   const [paymentStatus, setPaymentStatus] = useState(null);
- const [authToken, setAuthToken] = useState(null);
+  const [authToken, setAuthToken] = useState(null);
+  const [paymentError, setPaymentError] = useState(null);
 
   useEffect(() => {
     loadCart();
@@ -32,7 +35,12 @@ export default function CheckoutC() {
     }
   }, [step]);
 
-  
+  useEffect(() => {
+    if (authToken) {
+      fetchExistingReservations();
+    }
+  }, [authToken]);
+
   const getAuthTokenFromCookies = () => {
     const cookies = document.cookie.split(';');
     const authCookie = cookies.find(cookie => cookie.trim().startsWith('auth_token='));
@@ -46,6 +54,28 @@ export default function CheckoutC() {
         ...errors,
         auth: 'No se encontró token de autenticación. Por favor, inicia sesión nuevamente.'
       });
+    }
+  };
+
+  const fetchExistingReservations = async () => {
+    try {
+      const reservationsResponse = await fetch('http://localhost:5003/api/reservations', {
+        headers: {
+          'Authorization': `Bearer ${authToken}`
+        },
+      });
+      
+      if (!reservationsResponse.ok) {
+        if (reservationsResponse.status === 401) {
+          throw new Error('Sesión expirada. Por favor, inicia sesión nuevamente.');
+        }
+        throw new Error(`Error al cargar las reservas: ${reservationsResponse.status}`);
+      }
+      
+      const reservationsData = await reservationsResponse.json();
+      setExistingReservations(reservationsData.reservations || []);
+    } catch (error) {
+      console.error('Error al cargar reservaciones existentes:', error);
     }
   };
 
@@ -65,6 +95,7 @@ export default function CheckoutC() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+    setPaymentError(null); 
     
     if (name === 'cardNumber') {
       const formatted = value.replace(/\s/g, '').replace(/(\d{4})(?=\d)/g, '$1 ').trim();
@@ -87,24 +118,8 @@ export default function CheckoutC() {
     }
   };
 
-  const validateForm = () => {
+  const validateContactInfo = () => {
     const newErrors = {};
-    
-    if (!formData.cardHolder.trim()) {
-      newErrors.cardHolder = 'Por favor, ingresa el nombre del titular';
-    }
-    
-    if (!formData.cardNumber.trim() || formData.cardNumber.replace(/\s/g, '').length < 16) {
-      newErrors.cardNumber = 'Por favor, ingresa un número de tarjeta válido';
-    }
-    
-    if (!formData.expiryDate.trim() || !formData.expiryDate.includes('/')) {
-      newErrors.expiryDate = 'Formato inválido (MM/YY)';
-    }
-    
-    if (!formData.cvv.trim() || formData.cvv.length < 3) {
-      newErrors.cvv = 'CVV inválido';
-    }
     
     if (!formData.email.trim() || !/^\S+@\S+\.\S+$/.test(formData.email)) {
       newErrors.email = 'Por favor, ingresa un email válido';
@@ -118,134 +133,212 @@ export default function CheckoutC() {
     return Object.keys(newErrors).length === 0;
   };
 
+  const validatePaymentForm = () => {
+    const newErrors = {};
+    
+    if (!formData.cardHolder.trim()) {
+      newErrors.cardHolder = 'Por favor, ingresa el nombre del titular';
+    }
+    
+    if (!formData.cardNumber.trim() || formData.cardNumber.replace(/\s/g, '').length < 16) {
+      newErrors.cardNumber = 'Por favor, ingresa un número de tarjeta válido';
+    }
+    
+    if (!formData.expiryDate.trim() || !formData.expiryDate.includes('/')) {
+      newErrors.expiryDate = 'Formato inválido (MM/YY)';
+    } else {
+      const [month, year] = formData.expiryDate.split('/');
+      const currentDate = new Date();
+      const currentYear = currentDate.getFullYear() % 100; 
+      const currentMonth = currentDate.getMonth() + 1;
+      
+      if (parseInt(year) < currentYear || (parseInt(year) === currentYear && parseInt(month) < currentMonth)) {
+        newErrors.expiryDate = 'La tarjeta ha expirado';
+      }
+    }
+    
+    if (!formData.cvv.trim() || formData.cvv.length < 3) {
+      newErrors.cvv = 'CVV inválido';
+    }
+    
+    setErrors(prevErrors => ({ ...prevErrors, ...newErrors }));
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handlePaymentMethodChange = (method) => {
     setPaymentMethod(method);
   };
 
   const handleNextStep = () => {
     if (step === 1) {
-      setStep(2);
-      window.scrollTo(0, 0);
+      if (validateContactInfo()) {
+        setStep(2);
+        window.scrollTo(0, 0);
+      }
     } else if (step === 2) {
-      if (validateForm()) {
-        processPayment();
+      const contactInfoValid = validateContactInfo();
+      const paymentFormValid = validatePaymentForm();
+      
+      if (contactInfoValid && paymentFormValid) {
+        if (reservationId) {
+          processPaymentOnly();
+        } else {
+          createReservationAndProcessPayment();
+        }
       }
     }
   };
 
- const processPayment = async () => {
-  setIsLoading(true);
-
-  if (!authToken) {
-    setErrors({
-      ...errors,
-      auth: 'No se encontró token de autenticación. Por favor, inicia sesión nuevamente.'
-    });
-    setIsLoading(false);
-    return;
-  }
-  
-  try {
-    const workshopId = cartItems[0]?.id; 
-    
-    if (!workshopId) {
-      throw new Error('No workshop selected');
-    }
-    
-    console.log('Enviando solicitud de reserva con workshop_ids:', [workshopId]);
-    
-    // 1. Crear reserva
-    const reservationResponse = await fetch('http://localhost:5003/api/reservations', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authToken}`
-      },
-      body: JSON.stringify({
-        workshop_ids: [workshopId]
-      }),
-    });
-    
-    if (!reservationResponse.ok) {
-      const errorData = await reservationResponse.json();
-      console.error('Error de respuesta:', errorData);
-      throw new Error(`Error al crear la reserva: ${errorData.error || 'Error desconocido'}`);
-    }
-    
-    const reservationData = await reservationResponse.json();
-    console.log('Respuesta de reserva:', reservationData);
-    
-    // Determinar el ID de reserva correctamente
-    let createdReservationId;
-    if (reservationData.reservations && reservationData.reservations.length > 0) {
-      createdReservationId = reservationData.reservations[0].id;
-    } else if (reservationData.reservation) {
-      createdReservationId = reservationData.reservation.id;
-    } else {
-      throw new Error('No se pudo obtener el ID de reserva de la respuesta');
-    }
-    
-    setReservationId(createdReservationId);
-    
-    // 2. Procesar pago
-    const paymentResponse = await fetch('http://localhost:5003/api/payments/simulate', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authToken}`
-      },
-      body: JSON.stringify({
-        reservation_id: createdReservationId,
-        payment_method: paymentMethod,
-        amount: totalPrice  
-      }),
-      credentials: 'include'
-    });
-    
-    if (!paymentResponse.ok) {
-      const errorData = await paymentResponse.json();
-      console.error('Error de pago:', errorData);
-      throw new Error('Error al procesar el pago');
-    }
-    
-    const paymentData = await paymentResponse.json();
-    console.log('Respuesta de pago:', paymentData);
-    setPaymentStatus(paymentData.status || 'Procesado');
-    
-    const updateResponse = await fetch(`http://localhost:5003/api/reservations/${createdReservationId}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authToken}`
-      },
-      body: JSON.stringify({
-        status: 'Confirmada'
-      }),
-      credentials: 'include'
-    });
-    
-    if (!updateResponse.ok) {
-      const errorData = await updateResponse.json();
-      console.error('Error al actualizar reserva:', errorData);
-      throw new Error('Error al confirmar la reserva');
-    }
-    
-    const updateData = await updateResponse.json();
-    console.log('Respuesta de actualización:', updateData);
-    
+  const clearCart = () => {
     localStorage.removeItem('salsasCart');
+    setCartItems([]);
+    setTotalPrice(0);
+  };
+
+  const checkExistingReservation = () => {
+    const workshopId = cartItems[0]?.id;
+    if (!workshopId) return null;
     
-    setStep(3);
-  } catch (error) {
-    console.error('Error en el proceso de pago:', error);
-    setErrors({
-      ...errors,
-      payment: `Error al procesar el pago: ${error.message}`
-    });
-  } finally {
-    setIsLoading(false);
-  }
-};   
+    const existingReservation = existingReservations.find(
+      res => res.workshop_id === workshopId && !res.payment_completed
+    );
+    
+    return existingReservation?.id || null;
+  };
+
+  const createReservationAndProcessPayment = async () => {
+    setIsLoading(true);
+    setPaymentError(null);
+
+    if (!authToken) {
+      setErrors({
+        ...errors,
+        auth: 'No se encontró token de autenticación. Por favor, inicia sesión nuevamente.'
+      });
+      setIsLoading(false);
+      return;
+    }
+    
+    try {
+      const workshopId = cartItems[0]?.id; 
+      
+      if (!workshopId) {
+        throw new Error('No workshop selected');
+      }
+      
+      const existingReservationId = checkExistingReservation();
+      
+      if (existingReservationId) {
+        console.log('Usando reserva existente con ID:', existingReservationId);
+        setReservationId(existingReservationId);
+        await processPayment(existingReservationId);
+        return;
+      }
+      
+      console.log('Enviando solicitud de reserva con workshop_ids:', [workshopId]);
+      
+      const reservationResponse = await fetch('http://localhost:5003/api/reservations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({
+          workshop_ids: [workshopId]
+        }),
+      });
+      
+      if (!reservationResponse.ok) {
+        const errorData = await reservationResponse.json();
+        console.error('Error de respuesta:', errorData);
+        throw new Error(`Error al crear la reserva: ${errorData.error || 'Error desconocido'}`);
+      }
+      
+      const reservationData = await reservationResponse.json();
+      console.log('Respuesta de reserva:', reservationData);
+      
+      let createdReservationId;
+      if (reservationData.reservations && reservationData.reservations.length > 0) {
+        createdReservationId = reservationData.reservations[0].id;
+      } else if (reservationData.reservation) {
+        createdReservationId = reservationData.reservation.id;
+      } else {
+        throw new Error('No se pudo obtener el ID de reserva de la respuesta');
+      }
+      
+      setReservationId(createdReservationId);
+      
+      await processPayment(createdReservationId);
+      
+    } catch (error) {
+      console.error('Error en el proceso de reserva:', error);
+      setErrors({
+        ...errors,
+        payment: `Error: ${error.message}`
+      });
+      setIsLoading(false);
+    }
+  };
+
+  const processPaymentOnly = async () => {
+    setIsLoading(true);
+    setPaymentError(null);
+    
+    try {
+      await processPayment(reservationId);
+    } catch (error) {
+      console.error('Error al procesar el pago:', error);
+      setErrors({
+        ...errors,
+        payment: `Error: ${error.message}`
+      });
+      setIsLoading(false);
+    }
+  };
+
+  const processPayment = async (reservationId) => {
+    try {
+      const card = formData.cardNumber.replace(/\s/g, '');
+      const cvc = formData.cvv;
+      const expiryParts = formData.expiryDate.split('/');
+      const expiryMonth = expiryParts[0];
+      const expiryYear = expiryParts.length > 1 ? `20${expiryParts[1]}` : ''; 
+      console.log('Procesando pago para reserva:', reservationId);
+
+      const paymentResponse = await fetch('http://localhost:5004/api/payments/verify-card', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({
+          card_number: card, 
+          exp_month: expiryMonth,
+          exp_year: expiryYear,
+          cvc: cvc,
+          reservation_ids: [reservationId] 
+        }),
+      });
+      
+      const paymentData = await paymentResponse.json();
+      console.log('Respuesta de pago:', paymentData);
+      
+      if (!paymentResponse.ok || paymentData.is_valid === false) {
+        setPaymentError(paymentData.message || 'Error al procesar el pago');
+        throw new Error(paymentData.error || 'Error al procesar el pago');
+      }
+      
+      setPaymentStatus(paymentData.status || 'Procesado');
+      
+      clearCart();
+      setStep(3);
+    } catch (error) {
+      console.error('Error en el proceso de pago:', error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const formatCreditCard = (cardNumber) => {
     if (!cardNumber) return '';
@@ -362,9 +455,10 @@ export default function CheckoutC() {
                       name="email"
                       value={formData.email}
                       onChange={handleInputChange}
-                      className="w-full p-3 border border-[#E5E5E5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D94F4F]/50"
+                      className={`w-full p-3 border ${errors.email ? 'border-red-500' : 'border-[#E5E5E5]'} rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D94F4F]/50`}
                       placeholder="tu@email.com"
                     />
+                    {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
                   </div>
                   <div>
                     <label htmlFor="phone" className="block text-sm font-medium text-[#666666] mb-1">
@@ -376,9 +470,10 @@ export default function CheckoutC() {
                       name="phone"
                       value={formData.phone}
                       onChange={handleInputChange}
-                      className="w-full p-3 border border-[#E5E5E5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D94F4F]/50"
+                      className={`w-full p-3 border ${errors.phone ? 'border-red-500' : 'border-[#E5E5E5]'} rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D94F4F]/50`}
                       placeholder="(+502) 1234-5678"
                     />
+                    {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone}</p>}
                   </div>
                 </div>
               </div>
@@ -418,6 +513,18 @@ export default function CheckoutC() {
                     Continuar al pago
                     <ArrowRight size={18} />
                   </button>
+                    
+                  {(errors.email || errors.phone) && (
+                    <div className="mt-3 p-3 bg-red-50 text-red-600 rounded-lg text-sm">
+                      Por favor completa todos los campos requeridos.
+                    </div>
+                  )}
+                  
+                  {errors.payment && (
+                    <div className="mt-3 p-3 bg-red-50 text-red-600 rounded-lg text-sm">
+                      {errors.payment}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -427,8 +534,18 @@ export default function CheckoutC() {
         {step === 2 && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-6">
-              <div className="bg-white  border border-[#E5E5E5] p-6">
+              <div className="bg-white border border-[#E5E5E5] p-6">
                 <h2 className="text-xl font-medium text-[#333333] mb-4">Método de pago</h2>
+                
+                {paymentError && (
+                  <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
+                    <AlertCircle size={20} className="text-red-500 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="font-medium text-red-700">Error de pago</p>
+                      <p className="text-sm text-red-600">{paymentError}</p>
+                    </div>
+                  </div>
+                )}
                 
                 <div className="flex flex-wrap gap-3 mb-6">
                   <button

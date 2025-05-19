@@ -84,10 +84,14 @@ const ScrollIndicator = () => {
 
 export default function WorkshopId({ workshopId }) {
   const [workshop, setWorkshop] = useState(null);
+  const [authToken, setAuthToken] = useState(null);
   const [loading, setLoading] = useState(true);
   const [relatedWorkshops, setRelatedWorkshops] = useState([]);
   const [error, setError] = useState(null);
   const [allWorkshops, setAllWorkshops] = useState([]);
+  const [userReservations, setUserReservations] = useState([]);
+  const [isAlreadyReserved, setIsAlreadyReserved] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   const workshopImagesById = {
     1: "https://hd51x5cptm.ufs.sh/f/lhdSxG5nEibuMuhOjpzB02MisAEvYjHQhPGucaFX54CJrUOn", 
@@ -102,6 +106,96 @@ export default function WorkshopId({ workshopId }) {
     10: "https://hd51x5cptm.ufs.sh/f/lhdSxG5nEibu6VjN9FHvu4jTO7gzRm3dXnqYyJGwxA5VLMkc", 
     11: "https://hd51x5cptm.ufs.sh/f/lhdSxG5nEibuabLKK2ABUdWKHfOIM621lGQbSXNs5CArhFxz", 
     12: "https://hd51x5cptm.ufs.sh/f/lhdSxG5nEibu5F9013ZRtlECNGU1HWj4bcvBhzO65xgwroMF"  
+  };
+
+  useEffect(() => {
+    getAuthTokenFromCookies();
+    window.scrollTo(0, 0);
+  }, []);
+
+  const getAuthTokenFromCookies = () => {
+    const cookies = document.cookie.split(';');
+    const authCookie = cookies.find(cookie => cookie.trim().startsWith('auth_token='));
+    
+    if (authCookie) {
+      const token = authCookie.trim().substring('auth_token='.length);
+      setAuthToken(token);
+      verifyAuthToken(token);
+    } else {
+      console.log('No auth token found in cookies');
+      loadWorkshopData(workshopId);
+      setLoading(false);
+    }
+  };
+
+  const verifyAuthToken = async (token) => {
+    try {
+      const response = await fetch('http://localhost:5001/api/auth/me', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        setIsAuthenticated(true);
+        loadWorkshopData(workshopId);
+        loadUserReservations(token);
+      } else {
+        console.error('Invalid or expired token');
+        removeAuthTokenCookie();
+        setAuthToken(null);
+        setIsAuthenticated(false);
+        loadWorkshopData(workshopId);
+        setLoading(false);
+      }
+    } catch (err) {
+      console.error('Error verifying token:', err);
+      loadWorkshopData(workshopId);
+      setLoading(false);
+    }
+  };
+
+  const removeAuthTokenCookie = () => {
+    document.cookie = "auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+  };
+
+  const loadUserReservations = async (token) => {
+    if (!token) return;
+    
+    try {
+      const response = await fetch('http://localhost:5003/api/reservations', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+      });
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          removeAuthTokenCookie();
+          setAuthToken(null);
+          setIsAuthenticated(false);
+          console.log('Session expired, please log in again');
+          return;
+        }
+        
+        console.log(`Error loading reservations: ${response.status}`);
+        return;
+      }
+      
+      const data = await response.json();
+      
+      if (data && data.reservations) {
+        setUserReservations(data.reservations);
+        
+        const isReserved = data.reservations.some(
+          reservation => reservation.workshop_id.toString() === workshopId.toString()
+        );
+        
+        setIsAlreadyReserved(isReserved);
+      }
+    } catch (error) {
+      console.error("Error loading user reservations:", error);
+    }
   };
   
   const loadAllWorkshops = async () => {
@@ -192,12 +286,6 @@ export default function WorkshopId({ workshopId }) {
       setLoading(false);
     }
   };
-  
-  useEffect(() => {
-    if (workshopId) {
-      loadWorkshopData(workshopId);
-    }
-  }, [workshopId]);
 
   const addToCart = (item) => {
     const existingCart = localStorage.getItem('salsasCart');
@@ -521,15 +609,21 @@ export default function WorkshopId({ workshopId }) {
                     date: getFormattedDate(workshop.date),
                     time: workshop.time
                   })}
-                  disabled={workshop.available_slots < 1}
+                  disabled={workshop.available_slots < 1 || isAlreadyReserved}
                   className={`w-full py-4 flex items-center justify-center gap-3 text-lg tracking-wide transition-all rounded-lg ${
                     workshop.available_slots < 1 
                       ? "bg-[#E5E5E5] text-[#666666] cursor-not-allowed" 
-                      : "bg-[#D94F4F] text-white hover:bg-[#c04545] shadow-md hover:shadow-lg"
+                      : isAlreadyReserved
+                        ? "bg-[#6B8E23] text-white cursor-not-allowed"
+                        : "bg-[#D94F4F] text-white hover:bg-[#c04545] shadow-md hover:shadow-lg"
                   }`}
                 >
                   <ShoppingBag size={18} />
-                  {workshop.available_slots < 1 ? "Agotado" : "Reservar mi lugar"}
+                  {workshop.available_slots < 1 
+                    ? "Agotado" 
+                    : isAlreadyReserved 
+                      ? "Ya reservado" 
+                      : "Reservar mi lugar"}
                 </button>
               </motion.div>
             </div>

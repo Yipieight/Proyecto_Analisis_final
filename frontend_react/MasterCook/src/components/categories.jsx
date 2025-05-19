@@ -64,12 +64,42 @@ const categories = [
 
 export default function Categories() {
   const [currentPage, setCurrentPage] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
-  const itemsPerPage = 4;
+  const [itemsPerPage, setItemsPerPage] = useState(4);
+  const [totalPages, setTotalPages] = useState(Math.ceil(categories.length / itemsPerPage));
   
   useEffect(() => {
-    setTotalPages(Math.ceil(categories.length / itemsPerPage));
+    const handleResize = () => {
+      const width = window.innerWidth;
+      
+      if (width < 640) { 
+        setItemsPerPage(1);
+      } else if (width < 1024) { 
+        setItemsPerPage(2);
+      } else { 
+        setItemsPerPage(4);
+      }
+    };
+    
+    // Initial setup
+    handleResize();
+    
+    // Add event listener
+    window.addEventListener('resize', handleResize);
+    
+    // Cleanup
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
+  
+  useEffect(() => {
+    // Update total pages when items per page changes
+    const pages = Math.ceil(categories.length / itemsPerPage);
+    setTotalPages(pages);
+    
+    // If current page is now invalid, reset to first page
+    if (currentPage >= pages) {
+      setCurrentPage(0);
+    }
+  }, [itemsPerPage, categories.length, currentPage]);
 
   const nextPage = () => {
     if (currentPage < totalPages - 1) {
@@ -87,22 +117,23 @@ export default function Categories() {
     }
   };
   
-  // Navegar a la página de workshops con el ID de categoría
   const navigateToWorkshops = (categoryId) => {
-    // Navegación simple con JavaScript, pero con un estado para mantener la categoría
     localStorage.setItem('selectedCategory', categoryId);
     window.location.href = `/workshops`;
   };
   
+  // Get visible categories for current page
   const startIndex = currentPage * itemsPerPage;
   const visibleCategories = categories.slice(startIndex, startIndex + itemsPerPage);
   
   return (
     <section className="relative flex flex-col font-medium text-main-text">
-      <div className='p-8'>
-        <h1 className='text-4xl'>Categorías</h1>
+      <div className="p-4 sm:p-6 md:p-8">
+        <h1 className="text-2xl sm:text-3xl md:text-4xl">Categorías</h1>
       </div>
-      <div className="grid grid-cols-4 gap-0">
+
+      {/* Grid container - number of columns is determined by items per page */}
+      <div className={`grid grid-cols-${itemsPerPage} gap-0`}>
         {visibleCategories.map((category) => (
           <div key={category.id} className="relative outline outline-2 outline-primary">
             <div className="relative" data-zoom={category.dataZoom}>
@@ -120,9 +151,9 @@ export default function Categories() {
                   onClick={() => navigateToWorkshops(categoryMappings[category.title])}
                   className="block cursor-pointer"
                 >
-                  <div className="flex justify-between items-center p-4 lg:p-6 font-bold text-2xl lg:text-3xl bg-[#e58c8c] text-secondary hover:bg-secondary hover:text-[#df6f6f] border-b-2 border-primary transition-colors duration-200">
-                    <h2>{category.title}</h2>
-                    <div className="w-6 h-6">
+                  <div className="flex justify-between items-center p-3 sm:p-4 lg:p-6 font-bold text-lg sm:text-xl md:text-2xl lg:text-3xl bg-[#e58c8c] text-secondary hover:bg-secondary hover:text-[#df6f6f] border-b-2 border-primary transition-colors duration-200">
+                    <h2 className="truncate pr-2">{category.title}</h2>
+                    <div className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 flex-shrink-0">
                       <svg width="100%" height="100%" viewBox="0 0 17 27" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M3.1836 26.0662C6.32574 20.7266 11.2081 16.5218 16.4082 13.2568C11.1598 10.0406 6.48457 5.68956 3.19051 0.447478L0.0552734 0.447478C3.34243 5.52248 7.30636 9.93614 12.1957 13.2568C7.29945 16.6262 3.1836 21.0886 2.47955e-05 26.0662L3.1905 26.0662L3.1836 26.0662Z" fill="currentColor"></path>
                       </svg>
@@ -132,7 +163,7 @@ export default function Categories() {
               </div>
 
               <div 
-                className="h-[25rem] overflow-hidden cursor-pointer" 
+                className="h-48 sm:h-56 md:h-64 lg:h-[25rem] overflow-hidden cursor-pointer" 
                 onClick={() => navigateToWorkshops(categoryMappings[category.title])}
               >
                 <img 
@@ -146,33 +177,34 @@ export default function Categories() {
           </div>
         ))}
       </div>
-      <div className="flex justify-between absolute top-1/2 left-0 right-0 transform -translate-y-1/2 px-4">
+      
+      <div className="flex justify-between absolute top-1/2 left-0 right-0 transform -translate-y-1/2 px-2 sm:px-4">
         <button 
           onClick={prevPage} 
-          className="p-3 rounded-full bg-primary text-secondary"
+          className="p-2 sm:p-3 rounded-full bg-primary text-secondary"
           aria-label="Página anterior"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
         </button>
         <button 
           onClick={nextPage} 
-          className="p-3 rounded-full bg-primary text-secondary"
+          className="p-2 sm:p-3 rounded-full bg-primary text-secondary"
           aria-label="Página siguiente"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
         </button>
       </div>
 
-      <div className="flex justify-center items-center h-10 bg-light-background">
+      <div className="flex justify-center items-center h-8 sm:h-10 bg-light-background mt-2">
         {Array.from({ length: totalPages }).map((_, index) => (
           <button
             key={index}
             onClick={() => setCurrentPage(index)}
-            className={`h-3 w-3 mx-1 rounded-full ${currentPage === index ? 'bg-accent' : 'bg-gray-400'}`}
+            className={`h-2 w-2 sm:h-3 sm:w-3 mx-1 rounded-full transition-colors ${currentPage === index ? 'bg-accent' : 'bg-gray-400'}`}
             aria-label={`Ir a página ${index + 1}`}
           />
         ))}

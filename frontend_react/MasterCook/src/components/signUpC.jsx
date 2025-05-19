@@ -26,7 +26,6 @@ export default function SignupC() {
   const [success, setSuccess] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState(0);
 
-  // Password validation
   const validatePassword = (password) => {
     let strength = 0;
     if (password.length >= 8) strength += 1;
@@ -39,7 +38,6 @@ export default function SignupC() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Basic validation
     if (password !== confirmPassword) {
       setError('Las contraseñas no coinciden');
       return;
@@ -68,12 +66,9 @@ export default function SignupC() {
         throw new Error(data.message || 'Error al crear la cuenta');
       }
 
-      // If registration includes login and returns a token
       if (data.token) {
-        // Store token in cookies with expiration (7 days)
         Cookies.set('auth_token', data.token, { expires: 7, path: '/' });
         
-        // Store user info in localStorage if available
         if (data.user) {
           localStorage.setItem('user', JSON.stringify(data.user));
         }
@@ -81,9 +76,8 @@ export default function SignupC() {
 
       setSuccess(true);
       
-      // Redirect after successful registration
       setTimeout(() => {
-        window.location.href = data.token ? '/' : '/login';  // Redirect to home if logged in, else to login
+        window.location.href = data.token ? '/' : '/login';  
       }, 2000);
       
     } catch (err) {
@@ -101,7 +95,7 @@ export default function SignupC() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
-        className="w-full max-w-md bg-white rounded-xl shadow-lg overflow-hidden"
+        className="w-full max-w-md bg-white rounded-xl border border-[#e0dfdf] overflow-hidden"
       >
         <div className="px-8 pt-8 pb-6 border-b border-[#E5E5E5]">
           <h1 className="text-2xl font-bold text-[#333333] mb-2">Crear cuenta</h1>

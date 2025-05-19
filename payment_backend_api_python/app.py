@@ -5,6 +5,9 @@ import sys
 import os
 from datetime import datetime
 import requests
+import stripe
+
+stripe.api_key = os.getenv('STRIPE_SECRET_KEY', 'sk_test_BQokikJOvBiI2HlWgH4olfQ2')
 
 # Add parent directory to path to import config
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -35,11 +38,23 @@ class Reservation(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     workshop_id = db.Column(db.Integer, db.ForeignKey('workshops.id'), nullable=False)
     reservation_date = db.Column(db.DateTime, default=datetime.utcnow)
-    status = db.Column(db.String(20), default='Confirmada', nullable=False)
+    status = db.Column(db.String(20), default='confirmada', nullable=False)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
     
     payments = db.relationship('Payment', backref='reservation', lazy=True)
+
+    # Añade este método to_dict()
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'workshop_id': self.workshop_id,
+            'reservation_date': self.reservation_date.isoformat() if self.reservation_date else None,
+            'status': self.status,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
 
 class Workshop(db.Model):
     __tablename__ = 'workshops'
@@ -47,7 +62,8 @@ class Workshop(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text)
-    category = db.Column(db.String(50), nullable=False)
+    category_id = db.Column(db.Integer, db.ForeignKey('categories.id'))
+    category = db.relationship('Category', backref='workshops', lazy=True)
     date = db.Column(db.Date, nullable=False)
     start_time = db.Column(db.Time, nullable=False)
     end_time = db.Column(db.Time, nullable=False)
@@ -67,6 +83,27 @@ class Payment(db.Model):
     status = db.Column(db.String(20), default='Pendiente', nullable=False)  # 'Pendiente', 'Pagado'
     payment_method = db.Column(db.String(50))
     payment_date = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'reservation_id': self.reservation_id,
+            'amount': float(self.amount) if self.amount else None,
+            'status': self.status,
+            'payment_method': self.payment_method,
+            'payment_date': self.payment_date.isoformat() if self.payment_date else None,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+
+class Category(db.Model):
+    __tablename__ = 'categories'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), nullable=False, unique=True)
+    description = db.Column(db.Text)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
     
@@ -130,6 +167,163 @@ def get_payment_by_reservation(reservation_id):
         'payment': payment.to_dict()
     }), 200
 
+# Versión actualizada del endpoint para manejar múltiples reservas
+@app.route('/api/payments/verify-card', methods=['POST'])
+@jwt_required()
+def verify_card():
+    """
+    Este endpoint verifica una tarjeta de crédito/débito sin procesar un pago real
+    y puede confirmar múltiples reservas simultáneamente.
+    """
+    user_id = int(get_jwt_identity())
+    data = request.get_json()
+    
+    # Verificar que tenemos los datos requeridos de la tarjeta
+    if not data or 'card_number' not in data or 'exp_month' not in data or 'exp_year' not in data or 'cvc' not in data:
+        return jsonify({'error': 'Se requieren todos los datos de la tarjeta (número, mes de expiración, año de expiración y CVC)'}), 400
+    
+    # Verificar que tenemos al menos una reserva para procesar
+    if 'reservation_ids' not in data or not isinstance(data['reservation_ids'], list) or not data['reservation_ids']:
+        return jsonify({'error': 'Se requiere al menos un ID de reserva en el campo reservation_ids'}), 400
+    
+    reservation_ids = data['reservation_ids']
+    
+    # Verificar que todas las reservas existen y pertenecen al usuario
+    reservations = []
+    for res_id in reservation_ids:
+        reservation = Reservation.query.get(res_id)
+        if not reservation:
+            return jsonify({'error': f'Reserva con ID {res_id} no encontrada'}), 404
+        
+        if reservation.user_id != user_id:
+            return jsonify({'error': f'Acceso no autorizado a la reserva con ID {res_id}'}), 403
+        
+        # Verificar que la reserva no esté ya confirmada y pagada
+        existing_payment = Payment.query.filter_by(reservation_id=res_id).first()
+        if existing_payment and existing_payment.status == 'pagado':
+            return jsonify({'error': f'La reserva con ID {res_id} ya está pagada'}), 400
+        
+        reservations.append(reservation)
+    
+    try:
+        # Crear un token de tarjeta con Stripe
+        token = stripe.Token.create(
+            card={
+                "number": data['card_number'],
+                "exp_month": data['exp_month'],
+                "exp_year": data['exp_year'],
+                "cvc": data['cvc']
+            },
+        )
+        
+        # Crear un PaymentIntent de $1 que solo autoriza sin capturar fondos
+        intent = stripe.PaymentIntent.create(
+            amount=100,  # $1.00 en centavos
+            currency="usd",
+            payment_method_types=["card"],
+            capture_method="manual",  # Esto solo autoriza sin capturar
+        )
+        
+        # Confirmamos el PaymentIntent con el token de la tarjeta
+        payment_method = stripe.PaymentMethod.create(
+            type="card",
+            card={
+                "token": token.id,
+            },
+        )
+        
+        # Asociamos el método de pago con el intent
+        intent = stripe.PaymentIntent.confirm(
+            intent.id,
+            payment_method=payment_method.id,
+        )
+        
+        # Verificamos el estado
+        if intent.status == "requires_capture":
+            # La tarjeta es válida y tiene fondos disponibles
+            # Cancelamos el intent para no capturar fondos
+            stripe.PaymentIntent.cancel(intent.id)
+            
+            # Guardamos los últimos 4 dígitos de la tarjeta para referencia
+            card_last_4 = data['card_number'][-4:]
+            
+            # Procesar todas las reservas
+            processed_reservations = []
+            processed_payments = []
+            
+            # Iniciar una transacción para que todo sea atómico
+            try:
+                for reservation in reservations:
+                    # 1. Actualizar estado de la reserva a "Confirmada"
+                    reservation.status = 'confirmada'
+                    
+                    # 2. Obtener o crear el pago para esta reserva
+                    payment = Payment.query.filter_by(reservation_id=reservation.id).first()
+                    
+                    # Obtener el precio del taller
+                    workshop = Workshop.query.get(reservation.workshop_id)
+                    if not workshop:
+                        return jsonify({'error': f'Taller para la reserva {reservation.id} no encontrado'}), 404
+                    
+                    amount = float(workshop.price) if workshop.price else 0
+                    
+                    if payment:
+                        # Actualizar pago existente
+                        payment.payment_method = f"Tarjeta terminada en {card_last_4}"
+                        payment.status = "pagado"
+                        payment.payment_date = datetime.utcnow()
+                        payment.amount = amount
+                    else:
+                        # Crear nuevo pago
+                        payment = Payment(
+                            reservation_id=reservation.id,
+                            amount=amount,
+                            payment_method=f"Tarjeta terminada en {card_last_4}",
+                            status="pagado",
+                            payment_date=datetime.utcnow()
+                        )
+                        db.session.add(payment)
+                    
+                    processed_reservations.append(reservation.to_dict())
+                    processed_payments.append(payment.to_dict())
+                
+                # Confirmar todos los cambios
+                db.session.commit()
+                
+                return jsonify({
+                    'message': 'Tarjeta verificada exitosamente y reservas confirmadas',
+                    'card_last_4': card_last_4,
+                    'is_valid': True,
+                    'reservations': processed_reservations,
+                    'payments': processed_payments
+                }), 200
+            
+            except Exception as e:
+                # En caso de error, revertir los cambios
+                db.session.rollback()
+                return jsonify({'error': f'Error al procesar reservas: {str(e)}'}), 500
+        else:
+            # La tarjeta no pudo ser autorizada
+            return jsonify({
+                'message': 'La tarjeta no pudo ser verificada',
+                'is_valid': False,
+                'reason': intent.status
+            }), 200
+            
+    except stripe.error.CardError as e:
+        # Error específico de la tarjeta (tarjeta rechazada, etc.)
+        return jsonify({
+            'message': 'Error con la tarjeta',
+            'is_valid': False,
+            'error': str(e)
+        }), 200
+    except stripe.error.StripeError as e:
+        # Otros errores de Stripe
+        return jsonify({'error': f'Error de Stripe: {str(e)}'}), 500
+    except Exception as e:
+        # Errores generales
+        return jsonify({'error': f'Error del servidor: {str(e)}'}), 500
+
 @app.route('/api/payments', methods=['POST'])
 @jwt_required()
 def create_payment():
@@ -152,14 +346,14 @@ def create_payment():
     # Check if payment already exists
     existing_payment = Payment.query.filter_by(reservation_id=reservation_id).first()
     
-    if existing_payment and existing_payment.status == 'Pagado':
+    if existing_payment and existing_payment.status == 'pagado':
         return jsonify({'error': 'Payment already completed for this reservation'}), 400
     
     # If payment exists but pending, update it
     if existing_payment:
         existing_payment.amount = data['amount']
         existing_payment.payment_method = data['payment_method']
-        existing_payment.status = 'Pagado'
+        existing_payment.status = 'pagado'
         existing_payment.payment_date = datetime.utcnow()
         
         db.session.commit()
@@ -174,7 +368,7 @@ def create_payment():
         reservation_id=reservation_id,
         amount=data['amount'],
         payment_method=data['payment_method'],
-        status='Pagado',
+        status='pagado',
         payment_date=datetime.utcnow()
     )
     
@@ -223,7 +417,7 @@ def simulate_payment():
     payment_data = {
         'amount': amount,
         'payment_method': data.get('payment_method', 'Credit Card'),
-        'status': 'Pagado',
+        'status': 'pagado',
         'payment_date': datetime.utcnow()
     }
     

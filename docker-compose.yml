@@ -74,7 +74,7 @@ services:
       - DB_PORT=16152
       - DB_NAME=defaultdb
       - JWT_SECRET_KEY=mastercook-super-secret
-      - RESERVATION_SERVICE_URL=http://reservation_service:5003
+      - STRIPE_SECRET_KEY=sk_test_BQokikJOvBiI2HlWgH4olfQ2
     ports:
       - "5004:5004"
     depends_on:
