@@ -98,7 +98,7 @@ class Reservation(db.Model):
             'workshop_modality': self.workshop.modality if self.workshop else None,
             'reservation_date': self.reservation_date.isoformat() if self.reservation_date else None,
             'status': self.status,
-            'payment_status': self.payments[0].status if self.payments else 'Pendiente',
+            'payment_status': self.payments[0].status if self.payments else 'pendiente',
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
@@ -109,7 +109,7 @@ class Payment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     reservation_id = db.Column(db.Integer, db.ForeignKey('reservations.id'), nullable=False)
     amount = db.Column(db.Numeric(10, 2), nullable=False)
-    status = db.Column(db.String(20), default='Pendiente', nullable=False)  # 'Pendiente', 'Pagado'
+    status = db.Column(db.String(20), default='pendiente', nullable=False)  # 'pendiente', 'Pagado'
     payment_method = db.Column(db.String(50))
     payment_date = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
@@ -202,7 +202,7 @@ def create_reservation():
         existing_reservations = Reservation.query.filter(
             Reservation.user_id == user_id,
             Reservation.workshop_id.in_(workshop_ids),
-            Reservation.status.in_(['Confirmada', 'Pendiente'])
+            Reservation.status.in_(['Confirmada', 'pendiente'])
         ).all()
 
         if existing_reservations:
@@ -222,6 +222,7 @@ def create_reservation():
                 workshop_id=workshop.id,
                 reservation_date=datetime.utcnow(),
                 status='Pendiente'
+
             )
             db.session.add(reservation)
             db.session.flush()  # Generar ID sin commit
@@ -249,12 +250,37 @@ def create_reservation():
         print(f"Error: {str(e)}")
         return jsonify({'error': f'Error en el servidor: {str(e)}'}), 500
 
+from datetime import datetime
+
 @app.route('/api/reservations', methods=['GET'])
 @jwt_required()
 def get_user_reservations():
     user_id = int(get_jwt_identity())
     status = request.args.get('status')
     
+    # Primero, actualizar el estado de los talleres ya finalizados
+    current_datetime = datetime.now()
+    
+    # Buscar reservas confirmadas para este usuario
+    confirmed_reservations = Reservation.query.join(Workshop).filter(
+        Reservation.user_id == user_id,
+        Reservation.status == 'Confirmada'
+    ).all()
+    
+    # Verificar cada reserva para ver si el taller ya terminó
+    update_needed = False
+    for reservation in confirmed_reservations:
+        workshop = reservation.workshop
+        workshop_end_datetime = datetime.combine(workshop.date, workshop.end_time)
+        
+        if workshop_end_datetime < current_datetime:
+            reservation.status = 'Completada'
+            update_needed = True
+    
+    if update_needed:
+        db.session.commit()
+    
+    # Ahora obtener las reservas solicitadas
     query = Reservation.query.filter_by(user_id=user_id)
     
     if status:
