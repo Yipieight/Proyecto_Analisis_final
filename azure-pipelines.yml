@@ -17,8 +17,10 @@ stages:
   jobs:
   - job: Build
     displayName: Build
-    pool:
-      vmImage: ubuntu-latest
+  pool:
+    name: aComputer
+    demands:
+      - Agent.Name -equals aComputer
     steps:
     - task: Docker@2
       displayName: Build an image
