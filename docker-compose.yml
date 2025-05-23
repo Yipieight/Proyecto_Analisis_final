@@ -75,6 +75,7 @@ services:
       - DB_NAME=defaultdb
       - JWT_SECRET_KEY=mastercook-super-secret
       - STRIPE_SECRET_KEY=sk_test_BQokikJOvBiI2HlWgH4olfQ2
+      - RESERVATION_SERVICE_URL=http://reservation_service:5003
     ports:
       - "5004:5004"
     depends_on:
@@ -96,12 +97,14 @@ services:
       - DB_PORT=16152
       - DB_NAME=defaultdb
       - JWT_SECRET_KEY=mastercook-super-secret
+      - LOGIN_SERVICE_URL=http://login_service:5001
       - WORKSHOP_SERVICE_URL=http://workshop_service:5002
       - RESERVATION_SERVICE_URL=http://reservation_service:5003
       - PAYMENT_SERVICE_URL=http://payment_service:5004
     ports:
       - "5008:5008"
     depends_on:
+      - login_service
       - workshop_service
       - reservation_service
       - payment_service
