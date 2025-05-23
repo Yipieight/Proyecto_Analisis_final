@@ -27,9 +27,24 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(100), unique=True, nullable=False)
-    password_hash = db.Column(db.String(255), nullable=False)
+    password_hash = db.Column(db.String(255), nullable=True)  # Nullable para usuarios de Google
+    google_id = db.Column(db.String(100), unique=True, nullable=True)  # ID de Google
+    picture = db.Column(db.String(255), nullable=True)  # URL de la foto de perfil
+    auth_provider = db.Column(db.String(20), default='local', nullable=False)  # 'local' o 'google'
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'email': self.email,
+            'google_id': self.google_id,
+            'picture': self.picture,
+            'auth_provider': self.auth_provider,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
 
 class Reservation(db.Model):
     __tablename__ = 'reservations'
@@ -44,7 +59,6 @@ class Reservation(db.Model):
     
     payments = db.relationship('Payment', backref='reservation', lazy=True)
 
-    # Añade este método to_dict()
     def to_dict(self):
         return {
             'id': self.id,
@@ -77,12 +91,13 @@ class Workshop(db.Model):
 class Payment(db.Model):
     __tablename__ = 'payments'
     
-    id = db.Column(db.Integer, primary_key=True)
+    id = db.Column('id_payments', db.Integer, primary_key=True)  # ← CAMBIAR AQUÍ
     reservation_id = db.Column(db.Integer, db.ForeignKey('reservations.id'), nullable=False)
     amount = db.Column(db.Numeric(10, 2), nullable=False)
     status = db.Column(db.String(20), default='Pendiente', nullable=False)  # 'Pendiente', 'Pagado'
     payment_method = db.Column(db.String(50))
     payment_date = db.Column(db.DateTime)
+    number_auth = db.Column(db.String(64))  # Tamaño para hash SHA-256
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
 
@@ -110,11 +125,8 @@ class Category(db.Model):
     def to_dict(self):
         return {
             'id': self.id,
-            'reservation_id': self.reservation_id,
-            'amount': float(self.amount) if self.amount else None,
-            'status': self.status,
-            'payment_method': self.payment_method,
-            'payment_date': self.payment_date.isoformat() if self.payment_date else None,
+            'name': self.name,
+            'description': self.description,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
@@ -244,6 +256,8 @@ def verify_card():
             # Cancelamos el intent para no capturar fondos
             stripe.PaymentIntent.cancel(intent.id)
             
+            auth_number = intent.id  # Usamos el ID del PaymentIntent
+            hashed_auth = hashlib.sha256(auth_number.encode()).hexdigest()
             # Guardamos los últimos 4 dígitos de la tarjeta para referencia
             card_last_4 = data['card_number'][-4:]
             
@@ -273,6 +287,7 @@ def verify_card():
                         payment.status = "pagado"
                         payment.payment_date = datetime.utcnow()
                         payment.amount = amount
+                        payment.number_auth = hashed_auth
                     else:
                         # Crear nuevo pago
                         payment = Payment(
@@ -280,7 +295,9 @@ def verify_card():
                             amount=amount,
                             payment_method=f"Tarjeta terminada en {card_last_4}",
                             status="pagado",
-                            payment_date=datetime.utcnow()
+                            payment_date=datetime.utcnow(),
+                            number_auth=hashed_auth
+
                         )
                         db.session.add(payment)
                     
@@ -413,13 +430,18 @@ def simulate_payment():
     # Check if payment already exists
     existing_payment = Payment.query.filter_by(reservation_id=reservation_id).first()
     
+    # ↓↓↓ NUEVO CÓDIGO: Generar autorización simulada ↓↓↓
+    simulated_auth = f"SIM_{secrets.token_hex(8)}"  # 8 bytes = 16 caracteres hex
+    hashed_auth = hashlib.sha256(simulated_auth.encode()).hexdigest()
+
     # Payment data to be used
     payment_data = {
-        'amount': amount,
-        'payment_method': data.get('payment_method', 'Credit Card'),
-        'status': 'pagado',
-        'payment_date': datetime.utcnow()
-    }
+    'amount': amount,
+    'payment_method': data.get('payment_method', 'Credit Card'),
+    'status': 'pagado',
+    'payment_date': datetime.utcnow(),
+    'number_auth': hashed_auth
+}
     
     # If payment exists, update it
     if existing_payment:

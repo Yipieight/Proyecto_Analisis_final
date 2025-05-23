@@ -15,16 +15,52 @@ from config import create_app, db, init_app
 app = create_app(__name__)
 init_app(app)
 
-# Models - Only define tables that this service manages
+# Models
 class User(db.Model):
     __tablename__ = 'users'
     
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(100), unique=True, nullable=False)
-    password_hash = db.Column(db.String(255), nullable=False)
+    password_hash = db.Column(db.String(255), nullable=True)  # Nullable para usuarios de Google
+    google_id = db.Column(db.String(100), unique=True, nullable=True)  # ID de Google
+    picture = db.Column(db.String(255), nullable=True)  # URL de la foto de perfil
+    auth_provider = db.Column(db.String(20), default='local', nullable=False)  # 'local' o 'google'
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
+    
+    reservations = db.relationship('Reservation', backref='user', lazy=True)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'email': self.email,
+            'google_id': self.google_id,
+            'picture': self.picture,
+            'auth_provider': self.auth_provider,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+
+class Workshop(db.Model):
+    __tablename__ = 'workshops'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text)
+    category_id = db.Column(db.Integer, db.ForeignKey('categories.id'))
+    date = db.Column(db.Date, nullable=False)
+    start_time = db.Column(db.Time, nullable=False)
+    end_time = db.Column(db.Time, nullable=False)
+    price = db.Column(db.Numeric(10, 2), nullable=False)
+    capacity = db.Column(db.Integer, nullable=False)
+    instructor_id = db.Column(db.Integer, db.ForeignKey('instructors.id'))
+    modality = db.Column(db.String(20), nullable=False)
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
+    
+    reservations = db.relationship('Reservation', backref='workshop', lazy=True)
 
 class Category(db.Model):
     __tablename__ = 'categories'
@@ -45,23 +81,8 @@ class Instructor(db.Model):
     email = db.Column(db.String(100), unique=True, nullable=False)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
-
-class Workshop(db.Model):
-    __tablename__ = 'workshops'
-
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    description = db.Column(db.Text)
-    category_id = db.Column(db.Integer, db.ForeignKey('categories.id'))
-    date = db.Column(db.Date, nullable=False)
-    start_time = db.Column(db.Time, nullable=False)
-    end_time = db.Column(db.Time, nullable=False)
-    price = db.Column(db.Numeric(10, 2), nullable=False)
-    capacity = db.Column(db.Integer, nullable=False)
-    instructor_id = db.Column(db.Integer, db.ForeignKey('instructors.id'))
-    modality = db.Column(db.String(20), nullable=False)
-    created_at = db.Column(db.DateTime, server_default=db.func.now())
-    updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
+    
+    workshops = db.relationship('Workshop', backref='instructor', lazy=True)
 
 class Reservation(db.Model):
     __tablename__ = 'reservations'
@@ -74,9 +95,7 @@ class Reservation(db.Model):
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
     
-    # Relationships
-    user = db.relationship('User', backref='reservations', lazy=True)
-    workshop = db.relationship('Workshop', backref='reservations', lazy=True)
+    payments = db.relationship('Payment', backref='reservation', lazy=True)
     
     def to_dict(self):
         return {
@@ -92,10 +111,23 @@ class Reservation(db.Model):
             'workshop_modality': self.workshop.modality if self.workshop else None,
             'reservation_date': self.reservation_date.isoformat() if self.reservation_date else None,
             'status': self.status,
-            'payment_status': 'pendiente',  # Default status, payment info should come from payment service
+            'payment_status': self.payments[0].status if self.payments else 'pendiente',
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
+
+class Payment(db.Model):
+    __tablename__ = 'payments'
+    
+    id = db.Column('id_payments', db.Integer, primary_key=True)  # ← CAMBIAR AQUÍ
+    reservation_id = db.Column(db.Integer, db.ForeignKey('reservations.id'), nullable=False)
+    amount = db.Column(db.Numeric(10, 2), nullable=False)
+    status = db.Column(db.String(20), default='pendiente', nullable=False)
+    payment_method = db.Column(db.String(50))
+    payment_date = db.Column(db.DateTime)
+    number_auth = db.Column(db.String(64))  # ← AGREGAR ESTA LÍNEA
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
 
 # Create tables within application context
 with app.app_context():
@@ -195,6 +227,7 @@ def create_reservation():
 
         # Crear transacción
         reservations = []
+        payments = []
         
         for workshop in workshops:
             # Crear reserva
@@ -205,7 +238,18 @@ def create_reservation():
                 status='Pendiente'
             )
             db.session.add(reservation)
+            db.session.flush()  # Generar ID sin commit
+            
+            # Crear pago (el precio ya fue validado)
+            payment = Payment(
+                reservation_id=reservation.id,
+                amount=workshop.price,
+                status='pendiente'
+            )
+            db.session.add(payment)
+            
             reservations.append(reservation)
+            payments.append(payment)
 
         db.session.commit()
 
@@ -238,12 +282,11 @@ def get_user_reservations():
     update_needed = False
     for reservation in confirmed_reservations:
         workshop = reservation.workshop
-        if workshop:  # Verificar que el workshop existe
-            workshop_end_datetime = datetime.combine(workshop.date, workshop.end_time)
-            
-            if workshop_end_datetime < current_datetime:
-                reservation.status = 'completada'
-                update_needed = True
+        workshop_end_datetime = datetime.combine(workshop.date, workshop.end_time)
+        
+        if workshop_end_datetime < current_datetime:
+            reservation.status = 'completada'
+            update_needed = True
     
     if update_needed:
         db.session.commit()

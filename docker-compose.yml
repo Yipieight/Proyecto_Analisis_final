@@ -15,6 +15,7 @@ services:
       - DB_PORT=16152
       - DB_NAME=defaultdb
       - JWT_SECRET_KEY=mastercook-super-secret
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
     ports:
       - "5001:5001"
     networks:
