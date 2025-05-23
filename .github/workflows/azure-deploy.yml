@@ -120,7 +120,9 @@ jobs:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Deploy Container Apps
-        uses: azure/CLI@v1
+        run: |  # Ejecutar directamente en el runner
+          az version
+          az extension list
         with:
           inlineScript: |
             services=(
@@ -154,9 +156,7 @@ jobs:
             done
 
       - name: Verify Deployment
-        uses: azure/CLI@v1
-        with:
-          inlineScript: |
+        run: |
             echo "=== Public URLs ==="
             az containerapp list \
               --resource-group ${{ env.RESOURCE_GROUP }} \
