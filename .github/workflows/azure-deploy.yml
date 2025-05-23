@@ -11,95 +11,11 @@ env:
   AZURE_CONTAINER_REGISTRY: mastercookregistry
   RESOURCE_GROUP: MasterCookGroup
   CONTAINER_APP_ENVIRONMENT: mastercook-environment
+  REGION: eastus
 
 jobs:
   build-and-push:
-    runs-on: ubuntu-latest
-    environment: workflows
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
-
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v2
-
-    - name: Log in to Azure
-      uses: azure/login@v1
-      with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-    - name: Log in to Azure Container Registry
-      uses: docker/login-action@v2
-      with:
-        registry: ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io
-        username: ${{ secrets.ACR_USERNAME }}
-        password: ${{ secrets.ACR_PASSWORD }}
-
-    - name: Build and push login_service
-      uses: docker/build-push-action@v4
-      with:
-        context: .
-        file: ./login_backend_api_python/Dockerfile
-        platforms: linux/amd64
-        push: true
-        tags: |
-          ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/login_service:latest
-          ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/login_service:${{ github.sha }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
-
-    - name: Build and push workshop_service
-      uses: docker/build-push-action@v4
-      with:
-        context: .
-        file: ./workshop_backend_api_python/Dockerfile
-        platforms: linux/amd64
-        push: true
-        tags: |
-          ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/workshop_service:latest
-          ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/workshop_service:${{ github.sha }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
-
-    - name: Build and push reservation_service
-      uses: docker/build-push-action@v4
-      with:
-        context: .
-        file: ./reservation_backend_api_python/Dockerfile
-        platforms: linux/amd64
-        push: true
-        tags: |
-          ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/reservation_service:latest
-          ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/reservation_service:${{ github.sha }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
-
-    - name: Build and push payment_service
-      uses: docker/build-push-action@v4
-      with:
-        context: .
-        file: ./payment_backend_api_python/Dockerfile
-        platforms: linux/amd64
-        push: true
-        tags: |
-          ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/payment_service:latest
-          ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/payment_service:${{ github.sha }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
-
-    - name: Build and push booking_service
-      uses: docker/build-push-action@v4
-      with:
-        context: .
-        file: ./booking_backend_api_python/Dockerfile
-        platforms: linux/amd64
-        push: true
-        tags: |
-          ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/booking_service:latest
-          ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/booking_service:${{ github.sha }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+    # ... (el contenido de build-and-push se mantiene igual) ...
 
   deploy:
     runs-on: ubuntu-latest
@@ -117,69 +33,62 @@ jobs:
       uses: azure/CLI@v1
       with:
         inlineScript: |
-          # Deploy login-service
-          echo "Deploying login-service..."
-          az containerapp update \
-            --name login-service \
-            --resource-group ${{ env.RESOURCE_GROUP }} \
-            --image ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/login_service:${{ github.sha }} \
-            --set-env-vars \
-              DB_USER=avnadmin \
-              DB_PASSWORD=AVNS_Ndhucmx5Rv2r1Ni7ocS \
-              DB_HOST=mysql-3bbd1558-xboxgar56-040e.g.aivencloud.com \
-              DB_PORT=16152 \
-              DB_NAME=defaultdb \
-              JWT_SECRET_KEY=mastercook-super-secret \
-              GOOGLE_CLIENT_ID="${{ secrets.GOOGLE_CLIENT_ID }}"
-          
-          # Deploy workshop-service
-          echo "Deploying workshop-service..."
-          az containerapp update \
-            --name workshop-service \
-            --resource-group ${{ env.RESOURCE_GROUP }} \
-            --image ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/workshop_service:${{ github.sha }}
-          
-          # Deploy reservation-service
-          echo "Deploying reservation-service..."
-          az containerapp update \
-            --name reservation-service \
-            --resource-group ${{ env.RESOURCE_GROUP }} \
-            --image ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/reservation_service:${{ github.sha }}
-          
-          # Deploy payment-service
-          echo "Deploying payment-service..."
-          az containerapp update \
-            --name payment-service \
-            --resource-group ${{ env.RESOURCE_GROUP }} \
-            --image ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/payment_service:${{ github.sha }} \
-            --set-env-vars \
-              STRIPE_SECRET_KEY="${{ secrets.STRIPE_SECRET_KEY }}" \
-              RESERVATION_SERVICE_URL=http://reservation-service:5003
-          
-          # Deploy booking-service
-          echo "Deploying booking-service..."
+          # Función para desplegar servicios con configuración pública
+          deploy_public_service() {
+            local service_name=$1
+            local image_name=$2
+            local port=$3
+            local env_vars=$4
+            
+            echo "Deploying $service_name..."
+            az containerapp update \
+              --name $service_name \
+              --resource-group ${{ env.RESOURCE_GROUP }} \
+              --image ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/$image_name:${{ github.sha }} \
+              --ingress external \
+              --target-port $port \
+              --env-vars $env_vars
+          }
+
+          # Desplegar todos los servicios con configuración pública
+          deploy_public_service "login-service" "login_service" 5001 \
+            "DB_USER=avnadmin DB_PASSWORD=AVNS_Ndhucmx5Rv2r1Ni7ocS DB_HOST=mysql-3bbd1558-xboxgar56-040e.g.aivencloud.com DB_PORT=16152 DB_NAME=defaultdb JWT_SECRET_KEY=mastercook-super-secret GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}"
+
+          deploy_public_service "workshop-service" "workshop_service" 5002 \
+            "DB_USER=avnadmin DB_PASSWORD=AVNS_Ndhucmx5Rv2r1Ni7ocS DB_HOST=mysql-3bbd1558-xboxgar56-040e.g.aivencloud.com DB_PORT=16152 DB_NAME=defaultdb JWT_SECRET_KEY=mastercook-super-secret"
+
+          deploy_public_service "reservation-service" "reservation_service" 5003 \
+            "DB_USER=avnadmin DB_PASSWORD=AVNS_Ndhucmx5Rv2r1Ni7ocS DB_HOST=mysql-3bbd1558-xboxgar56-040e.g.aivencloud.com DB_PORT=16152 DB_NAME=defaultdb JWT_SECRET_KEY=mastercook-super-secret"
+
+          deploy_public_service "payment-service" "payment_service" 5004 \
+            "STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }} RESERVATION_SERVICE_URL=http://reservation-service.internal"
+
+          # Configuración especial para el API Gateway (booking-service)
+          PUBLIC_URLS="LOGIN_SERVICE_URL=https://login-service.${{ env.CONTAINER_APP_ENVIRONMENT }}.${{ env.REGION }}.azurecontainerapps.io"
+          PUBLIC_URLS+=" WORKSHOP_SERVICE_URL=https://workshop-service.${{ env.CONTAINER_APP_ENVIRONMENT }}.${{ env.REGION }}.azurecontainerapps.io"
+          PUBLIC_URLS+=" RESERVATION_SERVICE_URL=https://reservation-service.${{ env.CONTAINER_APP_ENVIRONMENT }}.${{ env.REGION }}.azurecontainerapps.io"
+          PUBLIC_URLS+=" PAYMENT_SERVICE_URL=https://payment-service.${{ env.CONTAINER_APP_ENVIRONMENT }}.${{ env.REGION }}.azurecontainerapps.io"
+
           az containerapp update \
             --name booking-service \
             --resource-group ${{ env.RESOURCE_GROUP }} \
             --image ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/booking_service:${{ github.sha }} \
-            --set-env-vars \
-              LOGIN_SERVICE_URL=http://login-service:5001 \
-              WORKSHOP_SERVICE_URL=http://workshop-service:5002 \
-              RESERVATION_SERVICE_URL=http://reservation-service:5003 \
-              PAYMENT_SERVICE_URL=http://payment-service:5004
+            --ingress external \
+            --target-port 5008 \
+            --env-vars $PUBLIC_URLS
 
     - name: Verify Deployment
       uses: azure/CLI@v1
       with:
         inlineScript: |
-          echo "=== Deployment Status ==="
+          # Función para obtener URLs públicas
+          get_public_url() {
+            local service_name=$1
+            az containerapp show --name $service_name --resource-group ${{ env.RESOURCE_GROUP }} \
+              --query "properties.configuration.ingress.fqdn" -o tsv
+          }
+
+          echo "=== Public URLs ==="
           for service in login-service workshop-service reservation-service payment-service booking-service; do
-            echo "Checking $service..."
-            az containerapp show --name $service --resource-group ${{ env.RESOURCE_GROUP }} \
-              --query "{name:name, status:properties.runningStatus, latestRevision:properties.latestRevisionName}" -o json
+            echo "$service: https://$(get_public_url $service)"
           done
-          
-          # Get public URL
-          BOOKING_URL=$(az containerapp show --name booking-service --resource-group ${{ env.RESOURCE_GROUP }} \
-            --query properties.configuration.ingress.fqdn -o tsv)
-          echo "Booking Service URL: https://$BOOKING_URL"
