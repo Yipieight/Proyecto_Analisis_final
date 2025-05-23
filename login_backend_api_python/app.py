@@ -16,7 +16,7 @@ app = create_app(__name__)
 init_app(app)
 
 # Google OAuth configuration
-GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID', 'tu-google-client-id-aqui')
+GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID', '881859997618-53q6ira3lf17me66lhj4kpk0q4bb25n1.apps.googleusercontent.com')
 
 # User model
 class User(db.Model):
