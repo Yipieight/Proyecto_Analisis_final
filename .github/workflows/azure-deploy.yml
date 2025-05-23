@@ -20,25 +20,25 @@ jobs:
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v2
+      uses: docker/setup-buildx-action@v3
 
     - name: Log in to Azure
-      uses: azure/login@v1
+      uses: azure/login@v2
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
 
     - name: Log in to Azure Container Registry
-      uses: docker/login-action@v2
+      uses: docker/login-action@v3
       with:
         registry: ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io
         username: ${{ secrets.ACR_USERNAME }}
         password: ${{ secrets.ACR_PASSWORD }}
 
     - name: Build and push login_service
-      uses: docker/build-push-action@v4
+      uses: docker/build-push-action@v5
       with:
         context: .
         file: ./login_backend_api_python/Dockerfile
@@ -51,7 +51,7 @@ jobs:
         cache-to: type=gha,mode=max
 
     - name: Build and push workshop_service
-      uses: docker/build-push-action@v4
+      uses: docker/build-push-action@v5
       with:
         context: .
         file: ./workshop_backend_api_python/Dockerfile
@@ -64,7 +64,7 @@ jobs:
         cache-to: type=gha,mode=max
 
     - name: Build and push reservation_service
-      uses: docker/build-push-action@v4
+      uses: docker/build-push-action@v5
       with:
         context: .
         file: ./reservation_backend_api_python/Dockerfile
@@ -77,7 +77,7 @@ jobs:
         cache-to: type=gha,mode=max
 
     - name: Build and push payment_service
-      uses: docker/build-push-action@v4
+      uses: docker/build-push-action@v5
       with:
         context: .
         file: ./payment_backend_api_python/Dockerfile
@@ -90,7 +90,7 @@ jobs:
         cache-to: type=gha,mode=max
 
     - name: Build and push booking_service
-      uses: docker/build-push-action@v4
+      uses: docker/build-push-action@v5
       with:
         context: .
         file: ./booking_backend_api_python/Dockerfile
@@ -109,17 +109,17 @@ jobs:
     environment: workflows
     
     steps:
-    - name: Install Correct Azure CLI Version
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y azure-cli=2.72.0-1~noble  # Versión anterior conocida
-        az extension remove --name containerapp --yes
-        az extension add --name containerapp --version 1.0.0
-
     - name: Azure Login
-      uses: azure/login@v1
+      uses: azure/login@v2
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Setup Azure Container Apps Extension
+      run: |
+        # Remove existing extension if present (without --yes flag)
+        az extension remove --name containerapp 2>/dev/null || true
+        # Add the containerapp extension
+        az extension add --name containerapp
 
     - name: Deploy Container Apps
       run: |
@@ -138,10 +138,7 @@ jobs:
           az containerapp update \
             --name $app_name \
             --resource-group ${{ env.RESOURCE_GROUP }} \
-            --environment ${{ env.CONTAINER_APP_ENVIRONMENT }} \
             --image ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/$image_name:${{ github.sha }} \
-            --ingress external \
-            --target-port $target_port \
             --set-env-vars \
               DB_USER='avnadmin' \
               DB_PASSWORD='AVNS_Ndhucmx5Rv2r1Ni7ocS' \
