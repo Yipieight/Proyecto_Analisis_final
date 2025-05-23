@@ -112,8 +112,8 @@ jobs:
     - name: Install Correct Azure CLI Version
       run: |
         curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
-        az extension remove --name containerapp -y
-        az extension add --name containerapp --version 1.0.0 -y
+        az extension remove --name containerapp --yes
+        az extension add --name containerapp --version 1.0.0
 
     - name: Azure Login
       uses: azure/login@v1
