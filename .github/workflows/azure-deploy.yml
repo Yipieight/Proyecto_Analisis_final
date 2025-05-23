@@ -112,7 +112,7 @@ jobs:
       - name: Install Latest Azure CLI
         run: |
           curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
-          az extension add --name containerapp --upgrade
+          az extension add --name containerapp --upgrade -y
 
       - name: Azure Login
         uses: azure/login@v1
@@ -120,45 +120,45 @@ jobs:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Deploy Container Apps
-        run: |  # Ejecutar directamente en el runner
+        run: |
+          echo "=== Azure CLI Version ==="
           az version
-          az extension list
-        with:
-          inlineScript: |
-            services=(
-              "login-service:login_service:5001"
-              "workshop-service:workshop_service:5002"
-              "reservation-service:reservation_service:5003"
-              "payment-service:payment_service:5004"
-              "booking-service:booking_service:5008"
-            )
+          
+          echo "=== Deploying Services ==="
+          services=(
+            "login-service:login_service:5001"
+            "workshop-service:workshop_service:5002"
+            "reservation-service:reservation_service:5003"
+            "payment-service:payment_service:5004"
+            "booking-service:booking_service:5008"
+          )
 
-            for service in "${services[@]}"; do
-              IFS=':' read -r app_name image_name target_port <<< "$service"
-              
-              echo "Deploying $app_name..."
-              az containerapp update \
-                --name $app_name \
-                --resource-group ${{ env.RESOURCE_GROUP }} \
-                --image ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/$image_name:${{ github.sha }} \
-                --ingress external \
-                --target-port $target_port \
-                --set-env-vars \
-                  DB_USER='avnadmin' \
-                  DB_PASSWORD='AVNS_Ndhucmx5Rv2r1Ni7ocS' \
-                  DB_HOST='mysql-3bbd1558-xboxgar56-040e.g.aivencloud.com' \
-                  DB_PORT='16152' \
-                  DB_NAME='defaultdb' \
-                  JWT_SECRET_KEY='mastercook-super-secret' \
-                  RESERVATION_SERVICE_URL='http://reservation-service.internal' \
-                  STRIPE_SECRET_KEY="${{ secrets.STRIPE_SECRET_KEY }}" \
-                  GOOGLE_CLIENT_ID="${{ secrets.GOOGLE_CLIENT_ID }}"
-            done
+          for service in "${services[@]}"; do
+            IFS=':' read -r app_name image_name target_port <<< "$service"
+            
+            echo "🚀 Deploying $app_name..."
+            az containerapp update \
+              --name $app_name \
+              --resource-group ${{ env.RESOURCE_GROUP }} \
+              --image ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/$image_name:${{ github.sha }} \
+              --ingress external \
+              --target-port $target_port \
+              --set-env-vars \
+                DB_USER='avnadmin' \
+                DB_PASSWORD='AVNS_Ndhucmx5Rv2r1Ni7ocS' \
+                DB_HOST='mysql-3bbd1558-xboxgar56-040e.g.aivencloud.com' \
+                DB_PORT='16152' \
+                DB_NAME='defaultdb' \
+                JWT_SECRET_KEY='mastercook-super-secret' \
+                RESERVATION_SERVICE_URL='http://reservation-service.internal' \
+                STRIPE_SECRET_KEY="${{ secrets.STRIPE_SECRET_KEY }}" \
+                GOOGLE_CLIENT_ID="${{ secrets.GOOGLE_CLIENT_ID }}"
+          done
 
       - name: Verify Deployment
         run: |
-            echo "=== Public URLs ==="
-            az containerapp list \
-              --resource-group ${{ env.RESOURCE_GROUP }} \
-              --query "[].{Name:name, URL:properties.configuration.ingress.fqdn}" \
-              -o table
+          echo "=== Public URLs ==="
+          az containerapp list \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --query "[].{Name:name, URL:properties.configuration.ingress.fqdn}" \
+            -o table
