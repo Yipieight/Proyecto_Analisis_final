@@ -16,7 +16,7 @@ El diagrama ilustra la estructura del sistema basada en microservicios, destacan
 - Comunicación entre los microservicios mediante APIs REST.  
 - Integración con servicios externos (ej: simulación de pagos).  
 
-![Diagrama de Arquitectura](images/arquitectura.png)  
+![Diagrama de Arquitectura](images/Arquitectura.jpeg)  
 
 ### 2. Diagrama de Casos de Uso  
 Este diagrama resume las interacciones principales de los usuarios con la plataforma:  
@@ -25,7 +25,7 @@ Este diagrama resume las interacciones principales de los usuarios con la plataf
 - Reserva de talleres y simulación de pagos.  
 - Visualización y gestión de reservas en "My Bookings".  
 
-![Diagrama de Casos de Uso](images/casos_de_uso.png)  
+![Diagrama de Casos de Uso](images/Caso_de_usos.jpeg)  
 
 ---
 
