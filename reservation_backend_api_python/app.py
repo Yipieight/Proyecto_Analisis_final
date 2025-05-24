@@ -118,16 +118,16 @@ class Reservation(db.Model):
 
 class Payment(db.Model):
     __tablename__ = 'payments'
-    
-    id = db.Column('id_payments', db.Integer, primary_key=True)  # ← CAMBIAR AQUÍ
+    id = db.Column('id_payments', db.Integer, primary_key=True, autoincrement=True)
     reservation_id = db.Column(db.Integer, db.ForeignKey('reservations.id'), nullable=False)
     amount = db.Column(db.Numeric(10, 2), nullable=False)
     status = db.Column(db.String(20), default='pendiente', nullable=False)
     payment_method = db.Column(db.String(50))
     payment_date = db.Column(db.DateTime)
-    number_auth = db.Column(db.String(64))  # ← AGREGAR ESTA LÍNEA
+    number_auth = db.Column(db.String(64))
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
+
 
 # Create tables within application context
 with app.app_context():
