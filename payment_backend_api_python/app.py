@@ -91,13 +91,14 @@ class Workshop(db.Model):
 class Payment(db.Model):
     __tablename__ = 'payments'
     
+    # ✅ CORRECTO: Mantener 'id_payments' pero agregar autoincrement=True
     id = db.Column('id_payments', db.Integer, primary_key=True, autoincrement=True)
     reservation_id = db.Column(db.Integer, db.ForeignKey('reservations.id'), nullable=False)
     amount = db.Column(db.Numeric(10, 2), nullable=False)
-    status = db.Column(db.String(20), default='Pendiente', nullable=False)  # 'Pendiente', 'Pagado'
+    status = db.Column(db.String(20), default='pendiente', nullable=False)
     payment_method = db.Column(db.String(50))
     payment_date = db.Column(db.DateTime)
-    number_auth = db.Column(db.String(64))  # Tamaño para hash SHA-256
+    number_auth = db.Column(db.String(64))  # ✅ SÍ existe en la BD
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     updated_at = db.Column(db.DateTime, server_default=db.func.now(), onupdate=db.func.now())
 
@@ -109,9 +110,11 @@ class Payment(db.Model):
             'status': self.status,
             'payment_method': self.payment_method,
             'payment_date': self.payment_date.isoformat() if self.payment_date else None,
+            'number_auth': self.number_auth,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
+
 
 class Category(db.Model):
     __tablename__ = 'categories'
