@@ -121,35 +121,87 @@ jobs:
         # Add the containerapp extension
         az extension add --name containerapp
 
-    - name: Deploy Container Apps
+    - name: Deploy Login Service
       run: |
-        services=(
-          "login-service:login_service:5001"
-          "workshop-service:workshop_service:5002"
-          "reservation-service:reservation_service:5003"
-          "payment-service:payment_service:5004"
-          "booking-service:booking_service:5008"
-        )
+        echo "🚀 Deploying login-service..."
+        az containerapp update \
+          --name login-service \
+          --resource-group ${{ env.RESOURCE_GROUP }} \
+          --image ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/login_service:${{ github.sha }} \
+          --set-env-vars \
+            DB_USER='avnadmin' \
+            DB_PASSWORD='AVNS_Ndhucmx5Rv2r1Ni7ocS' \
+            DB_HOST='mysql-3bbd1558-xboxgar56-040e.g.aivencloud.com' \
+            DB_PORT='16152' \
+            DB_NAME='defaultdb' \
+            JWT_SECRET_KEY='mastercook-super-secret' \
+            GOOGLE_CLIENT_ID="${{ secrets.GOOGLE_CLIENT_ID }}"
 
-        for service in "${services[@]}"; do
-          IFS=':' read -r app_name image_name target_port <<< "$service"
-          
-          echo "🚀 Deploying $app_name..."
-          az containerapp update \
-            --name $app_name \
-            --resource-group ${{ env.RESOURCE_GROUP }} \
-            --image ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/$image_name:${{ github.sha }} \
-            --set-env-vars \
-              DB_USER='avnadmin' \
-              DB_PASSWORD='AVNS_Ndhucmx5Rv2r1Ni7ocS' \
-              DB_HOST='mysql-3bbd1558-xboxgar56-040e.g.aivencloud.com' \
-              DB_PORT='16152' \
-              DB_NAME='defaultdb' \
-              JWT_SECRET_KEY='mastercook-super-secret' \
-              RESERVATION_SERVICE_URL='http://reservation-service.internal' \
-              STRIPE_SECRET_KEY="${{ secrets.STRIPE_SECRET_KEY }}" \
-              GOOGLE_CLIENT_ID="${{ secrets.GOOGLE_CLIENT_ID }}"
-        done
+    - name: Deploy Workshop Service
+      run: |
+        echo "🚀 Deploying workshop-service..."
+        az containerapp update \
+          --name workshop-service \
+          --resource-group ${{ env.RESOURCE_GROUP }} \
+          --image ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/workshop_service:${{ github.sha }} \
+          --set-env-vars \
+            DB_USER='avnadmin' \
+            DB_PASSWORD='AVNS_Ndhucmx5Rv2r1Ni7ocS' \
+            DB_HOST='mysql-3bbd1558-xboxgar56-040e.g.aivencloud.com' \
+            DB_PORT='16152' \
+            DB_NAME='defaultdb' \
+            JWT_SECRET_KEY='mastercook-super-secret'
+
+    - name: Deploy Reservation Service
+      run: |
+        echo "🚀 Deploying reservation-service..."
+        az containerapp update \
+          --name reservation-service \
+          --resource-group ${{ env.RESOURCE_GROUP }} \
+          --image ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/reservation_service:${{ github.sha }} \
+          --set-env-vars \
+            DB_USER='avnadmin' \
+            DB_PASSWORD='AVNS_Ndhucmx5Rv2r1Ni7ocS' \
+            DB_HOST='mysql-3bbd1558-xboxgar56-040e.g.aivencloud.com' \
+            DB_PORT='16152' \
+            DB_NAME='defaultdb' \
+            JWT_SECRET_KEY='mastercook-super-secret'
+
+    - name: Deploy Payment Service
+      run: |
+        echo "🚀 Deploying payment-service..."
+        az containerapp update \
+          --name payment-service \
+          --resource-group ${{ env.RESOURCE_GROUP }} \
+          --image ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/payment_service:${{ github.sha }} \
+          --set-env-vars \
+            DB_USER='avnadmin' \
+            DB_PASSWORD='AVNS_Ndhucmx5Rv2r1Ni7ocS' \
+            DB_HOST='mysql-3bbd1558-xboxgar56-040e.g.aivencloud.com' \
+            DB_PORT='16152' \
+            DB_NAME='defaultdb' \
+            JWT_SECRET_KEY='mastercook-super-secret' \
+            RESERVATION_SERVICE_URL='https://reservation-service.mangoflower-5e37f0a4.eastus.azurecontainerapps.io' \
+            STRIPE_SECRET_KEY="${{ secrets.STRIPE_SECRET_KEY }}"
+
+    - name: Deploy Booking Service (API Gateway)
+      run: |
+        echo "🚀 Deploying booking-service (API Gateway)..."
+        az containerapp update \
+          --name booking-service \
+          --resource-group ${{ env.RESOURCE_GROUP }} \
+          --image ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/booking_service:${{ github.sha }} \
+          --set-env-vars \
+            DB_USER='avnadmin' \
+            DB_PASSWORD='AVNS_Ndhucmx5Rv2r1Ni7ocS' \
+            DB_HOST='mysql-3bbd1558-xboxgar56-040e.g.aivencloud.com' \
+            DB_PORT='16152' \
+            DB_NAME='defaultdb' \
+            JWT_SECRET_KEY='mastercook-super-secret' \
+            LOGIN_SERVICE_URL='https://login-service.mangoflower-5e37f0a4.eastus.azurecontainerapps.io' \
+            WORKSHOP_SERVICE_URL='https://workshop-service.mangoflower-5e37f0a4.eastus.azurecontainerapps.io' \
+            RESERVATION_SERVICE_URL='https://reservation-service.mangoflower-5e37f0a4.eastus.azurecontainerapps.io' \
+            PAYMENT_SERVICE_URL='https://payment-service.mangoflower-5e37f0a4.eastus.azurecontainerapps.io'
 
     - name: Verify Deployment
       run: |
@@ -158,3 +210,9 @@ jobs:
           --resource-group ${{ env.RESOURCE_GROUP }} \
           --query "[].{Name:name, URL:properties.configuration.ingress.fqdn}" \
           -o table
+          
+        echo ""
+        echo "=== Testing API Gateway Health ==="
+        sleep 30  # Wait for deployment to be ready
+        curl -f https://booking-service.mangoflower-5e37f0a4.eastus.azurecontainerapps.io/api/health || echo "Health check failed"
+        curl -f https://booking-service.mangoflower-5e37f0a4.eastus.azurecontainerapps.io/api/health/services || echo "Services health check failed"
