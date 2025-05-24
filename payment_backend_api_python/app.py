@@ -91,7 +91,7 @@ class Workshop(db.Model):
 class Payment(db.Model):
     __tablename__ = 'payments'
     
-    id = db.Column('id_payments', db.Integer, primary_key=True)  # ← CAMBIAR AQUÍ
+    id = db.Column('id_payments', db.Integer, primary_key=True, autoincrement=True)
     reservation_id = db.Column(db.Integer, db.ForeignKey('reservations.id'), nullable=False)
     amount = db.Column(db.Numeric(10, 2), nullable=False)
     status = db.Column(db.String(20), default='Pendiente', nullable=False)  # 'Pendiente', 'Pagado'
